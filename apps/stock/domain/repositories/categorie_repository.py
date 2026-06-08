@@ -1,0 +1,16 @@
+from abc import ABC, abstractmethod
+from typing import Optional, List
+from uuid import UUID
+from stock.domain.entities.categorie import Categorie
+
+class CategorieRepository(ABC):
+    @abstractmethod
+    def get(self, id: UUID) -> Optional[Categorie]: ...
+    @abstractmethod
+    def add(self, categorie: Categorie) -> None: ...
+    @abstractmethod
+    def remove(self, categorie: Categorie) -> None: ...
+    @abstractmethod
+    def find_by_nom(self, nom: str) -> Optional[Categorie]: ...
+    @abstractmethod
+    def find_all(self) -> List[Categorie]: ...
