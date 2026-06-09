@@ -1,6 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist
-from uuid import UUID
 from typing import Optional, List
+from uuid import UUID
 from maintenance.domain.repositories.piece_repository import PieceDetacheeRepository
 from maintenance.domain.entities.piece_detachee import PieceDetachee
 from maintenance.infrastructure.models import PieceDetacheeModel
@@ -15,6 +15,9 @@ class DjangoPieceDetacheeRepository(PieceDetacheeRepository):
             return None
 
     def get_by_reference(self, reference: str) -> Optional[PieceDetachee]:
+        return self.find_by_reference(reference)
+
+    def find_by_reference(self, reference: str) -> Optional[PieceDetachee]:
         try:
             model = PieceDetacheeModel.objects.get(reference=reference)
             return PieceDetacheeMapper.to_domain(model)
@@ -36,5 +39,3 @@ class DjangoPieceDetacheeRepository(PieceDetacheeRepository):
     def find_all(self) -> List[PieceDetachee]:
         models = PieceDetacheeModel.objects.all()
         return [PieceDetacheeMapper.to_domain(m) for m in models]
-    def find_by_reference(self, reference: str) -> Optional[PieceDetachee]:
-     return self.get_by_reference(reference)

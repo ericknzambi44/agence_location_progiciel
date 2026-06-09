@@ -13,5 +13,18 @@ class PieceDetacheeRepository(ABC):
         pass
 
     @abstractmethod
+    def update(self, piece: PieceDetachee) -> None:
+        """Met à jour une pièce détachée existante."""
+        pass
+
+    @abstractmethod
+    def remove(self, piece: PieceDetachee) -> None:
+        pass
+
+    @abstractmethod
     def find_by_reference(self, reference: str) -> Optional[PieceDetachee]:
+        pass
+
+    @abstractmethod
+    def find_all(self) -> List[PieceDetachee]:
         pass

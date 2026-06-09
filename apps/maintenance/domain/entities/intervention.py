@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 from typing import List, Tuple
 from decimal import Decimal
@@ -15,21 +15,20 @@ class StatutIntervention(Enum):
 
 @dataclass
 class Intervention:
-    # Champs obligatoires (sans défaut)
     bien_id: UUID
     technicien: Technicien
     date_debut: datetime
     date_fin: datetime
-    # Champs optionnels (avec défaut)
     statut: StatutIntervention = StatutIntervention.PLANIFIEE
     pieces_utilisees: List[Tuple[PieceDetachee, int]] = field(default_factory=list)
     cout_main_oeuvre: Decimal = Decimal('0')
     cout_total: Decimal = Decimal('0')
-    # id en dernier (car default_factory)
     id: UUID = field(default_factory=uuid4)
 
     def __post_init__(self):
-        if self.date_debut < datetime.now():
+        # Utiliser timezone-aware pour la comparaison (UTC)
+        now = datetime.now(timezone.utc)
+        if self.date_debut < now:
             raise ValueError("La date de début ne peut pas être dans le passé")
         if self.date_fin <= self.date_debut:
             raise ValueError("La date de fin doit être postérieure à la date de début")

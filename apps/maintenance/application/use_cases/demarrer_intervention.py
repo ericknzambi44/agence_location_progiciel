@@ -5,9 +5,9 @@ class DemarrerInterventionUseCase:
     def __init__(self, repo: InterventionRepository):
         self.repo = repo
 
-    def execute(self, intervention_id: UUID):
+    def execute(self, intervention_id: UUID) -> None:
         intervention = self.repo.get(intervention_id)
         if not intervention:
             raise ValueError("Intervention introuvable")
         intervention.demarrer()
-        self.repo.add(intervention)
+        self.repo.update(intervention)

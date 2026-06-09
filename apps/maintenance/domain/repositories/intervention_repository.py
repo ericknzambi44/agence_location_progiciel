@@ -14,6 +14,11 @@ class InterventionRepository(ABC):
         pass
 
     @abstractmethod
+    def update(self, intervention: Intervention) -> None:
+        """Met à jour une intervention existante."""
+        pass
+
+    @abstractmethod
     def remove(self, intervention: Intervention) -> None:
         pass
 

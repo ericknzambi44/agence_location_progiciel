@@ -16,13 +16,15 @@ class DjangoInterventionRepository(InterventionRepository):
             return None
 
     def add(self, intervention: Intervention) -> None:
-        model = InterventionMapper.to_model(intervention)
+        model = InterventionMapper.to_model(intervention, include_id=False)
+        # Force la génération d'un nouvel ID par la base de données
+        model.id = None
         model.save()
         intervention.id = model.id
 
     def update(self, intervention: Intervention) -> None:
-        model = InterventionMapper.to_model(intervention)
-        model.save()
+        model = InterventionMapper.to_model(intervention, include_id=True)
+        model.save(force_update=True)
 
     def remove(self, intervention: Intervention) -> None:
         InterventionModel.objects.filter(id=intervention.id).delete()

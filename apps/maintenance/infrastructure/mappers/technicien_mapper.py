@@ -11,7 +11,7 @@ class TechnicienMapper:
             prenom=PersonName(model.prenom),
             email=Email(model.email),
             cout_horaire=Decimal(str(model.cout_horaire)),
-            actif=True,  # valeur par défaut car le modèle n'a pas ce champ
+            actif=True,   # pas de champ actif dans le modèle, on met une valeur par défaut
             id=model.id
         )
 

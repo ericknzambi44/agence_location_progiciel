@@ -15,7 +15,4 @@ class AjouterPieceUseCase:
         if not piece:
             raise ValueError("Pièce détachée introuvable")
         intervention.ajouter_piece(piece, quantite)
-        self.intervention_repo.save(intervention)
-        # Mise à jour du stock de la pièce (si on gère le stock dans le domaine)
-        piece.reduire_stock(quantite)
-        self.piece_repo.update(piece)
+        self.intervention_repo.update(intervention)

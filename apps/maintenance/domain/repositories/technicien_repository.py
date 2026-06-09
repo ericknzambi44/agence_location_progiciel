@@ -9,5 +9,18 @@ class TechnicienRepository(ABC):
         pass
 
     @abstractmethod
+    def add(self, technicien: Technicien) -> None:
+        pass
+
+    @abstractmethod
+    def update(self, technicien: Technicien) -> None:
+        """Met à jour un technicien existant."""
+        pass
+
+    @abstractmethod
+    def remove(self, technicien: Technicien) -> None:
+        pass
+
+    @abstractmethod
     def get_all(self) -> List[Technicien]:
         pass
