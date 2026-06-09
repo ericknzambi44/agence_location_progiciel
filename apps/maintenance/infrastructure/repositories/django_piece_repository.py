@@ -36,3 +36,5 @@ class DjangoPieceDetacheeRepository(PieceDetacheeRepository):
     def find_all(self) -> List[PieceDetachee]:
         models = PieceDetacheeModel.objects.all()
         return [PieceDetacheeMapper.to_domain(m) for m in models]
+    def find_by_reference(self, reference: str) -> Optional[PieceDetachee]:
+     return self.get_by_reference(reference)

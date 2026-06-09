@@ -1,9 +1,9 @@
+from decimal import Decimal
 from rh.domain.entities.employe import Employe
 from rh.domain.value_objects.matricule import Matricule
 from rh.domain.value_objects.taux_horaire import TauxHoraire
 from shared_kernel.domain.value_objects import Email, PersonName
 from rh.infrastructure.models import EmployeModel
-from decimal import Decimal
 
 class EmployeMapper:
     @staticmethod
@@ -15,7 +15,7 @@ class EmployeMapper:
             prenom=PersonName(model.prenom),
             email=Email(model.email),
             date_embauche=model.date_embauche,
-            taux_horaire=TauxHoraire(model.taux_horaire),
+            taux_horaire=TauxHoraire(Decimal(str(model.taux_horaire))),  # conversion correcte
             poste=model.poste,
             est_actif=model.est_actif,
             role_id=model.role_id

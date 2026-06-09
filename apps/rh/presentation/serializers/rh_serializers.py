@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from uuid import UUID
 
 class EmployeInputSerializer(serializers.Serializer):
     matricule = serializers.CharField(max_length=10)
@@ -12,12 +11,12 @@ class EmployeInputSerializer(serializers.Serializer):
 
 class EmployeOutputSerializer(serializers.Serializer):
     id = serializers.UUIDField()
-    matricule = serializers.CharField()
-    nom = serializers.CharField()
-    prenom = serializers.CharField()
-    email = serializers.EmailField()
+    matricule = serializers.CharField(source='matricule.value')
+    nom = serializers.CharField(source='nom.value')
+    prenom = serializers.CharField(source='prenom.value')
+    email = serializers.EmailField(source='email.value')
     date_embauche = serializers.DateField()
-    taux_horaire = serializers.DecimalField(max_digits=8, decimal_places=2)
+    taux_horaire = serializers.DecimalField(max_digits=8, decimal_places=2, source='taux_horaire.valeur')
     poste = serializers.CharField()
     est_actif = serializers.BooleanField()
 

@@ -1,16 +1,11 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from decimal import Decimal
-from enum import Enum
-from typing import List, Optional
 from uuid import UUID, uuid4
-
-from stock.domain.entities.bien import Bien  # dépendance externe mais domaine, OK car stock est un module voisin
+from typing import List, Tuple
+from decimal import Decimal
 from maintenance.domain.entities.technicien import Technicien
 from maintenance.domain.entities.piece_detachee import PieceDetachee
-from maintenance.domain.value_objects.duree import Duree
-from maintenance.domain.value_objects.cout import Cout
-from maintenance.domain.enums.error_codes import InterventionError, CalculCoutError
+from enum import Enum
 
 class StatutIntervention(Enum):
     PLANIFIEE = "planifiee"
@@ -20,74 +15,43 @@ class StatutIntervention(Enum):
 
 @dataclass
 class Intervention:
-    id: UUID = field(default_factory=uuid4)
-    bien: Bien
-    technicien: Optional[Technicien] = None
-    date_debut_prevue: Optional[datetime] = None
-    date_fin_prevue: Optional[datetime] = None
-    date_debut_reelle: Optional[datetime] = None
-    date_fin_reelle: Optional[datetime] = None
+    # Champs obligatoires (sans défaut)
+    bien_id: UUID
+    technicien: Technicien
+    date_debut: datetime
+    date_fin: datetime
+    # Champs optionnels (avec défaut)
     statut: StatutIntervention = StatutIntervention.PLANIFIEE
-    pieces_utilisees: List[PieceDetachee] = field(default_factory=list)
-    description_panne: str = ""
-    rapport_final: str = ""
-    cout_total: Optional[Cout] = None
+    pieces_utilisees: List[Tuple[PieceDetachee, int]] = field(default_factory=list)
+    cout_main_oeuvre: Decimal = Decimal('0')
+    cout_total: Decimal = Decimal('0')
+    # id en dernier (car default_factory)
+    id: UUID = field(default_factory=uuid4)
 
     def __post_init__(self):
-        self._validate_dates()
-        if self.statut not in StatutIntervention:
-            raise ValueError(InterventionError.INTERVENTION_SANS_TECHNICIEN.value)  # temporaire
-
-    def _validate_dates(self):
-        if self.date_debut_prevue and self.date_fin_prevue:
-            if self.date_debut_prevue >= self.date_fin_prevue:
-                raise ValueError(InterventionError.DATE_FIN_AVANT_DATE_DEBUT.value)
-        if self.date_debut_reelle and self.date_fin_reelle:
-            if self.date_debut_reelle >= self.date_fin_reelle:
-                raise ValueError("Les dates réelles sont incohérentes.")
-
-    # --- Logique métier ---
-    def planifier(self, debut: datetime, fin: datetime, technicien: Technicien):
-        if self.statut != StatutIntervention.PLANIFIEE:
-            raise ValueError(InterventionError.INTERVENTION_DEJA_CLOTUREE.value)
-        if debut < datetime.now():
-            raise ValueError(InterventionError.DATE_DEBUT_INFERIEURE_A_AUJOURD_HUI.value)
-        if debut >= fin:
-            raise ValueError(InterventionError.DATE_FIN_AVANT_DATE_DEBUT.value)
-        self.date_debut_prevue = debut
-        self.date_fin_prevue = fin
-        self.technicien = technicien
-        # Ici on pourrait émettre un événement de domaine
+        if self.date_debut < datetime.now():
+            raise ValueError("La date de début ne peut pas être dans le passé")
+        if self.date_fin <= self.date_debut:
+            raise ValueError("La date de fin doit être postérieure à la date de début")
 
     def demarrer(self):
         if self.statut != StatutIntervention.PLANIFIEE:
-            raise ValueError("Seule une intervention planifiée peut démarrer.")
-        if not self.technicien:
-            raise ValueError(InterventionError.INTERVENTION_SANS_TECHNICIEN.value)
+            raise ValueError("Seule une intervention planifiée peut être démarrée")
         self.statut = StatutIntervention.EN_COURS
-        self.date_debut_reelle = datetime.now()
 
-    def ajouter_piece(self, piece: PieceDetachee):
-        if self.statut in (StatutIntervention.TERMINEE, StatutIntervention.ANNULEE):
-            raise ValueError(InterventionError.INTERVENTION_DEJA_CLOTUREE.value)
-        self.pieces_utilisees.append(piece)
-
-    def terminer(self, rapport: str):
+    def terminer(self):
         if self.statut != StatutIntervention.EN_COURS:
-            raise ValueError("Seule une intervention en cours peut être terminée.")
+            raise ValueError("Seule une intervention en cours peut être terminée")
         self.statut = StatutIntervention.TERMINEE
-        self.date_fin_reelle = datetime.now()
-        self.rapport_final = rapport
         self.calculer_cout()
 
-    def calculer_cout(self) -> Cout:
-        if not self.date_debut_reelle or not self.date_fin_reelle:
-            raise ValueError(CalculCoutError.DUREE_NON_DEFINIE.value)
-        duree = Duree((self.date_fin_reelle - self.date_debut_reelle).total_seconds() / 3600.0)
-        if not self.technicien:
-            raise ValueError(CalculCoutError.TARIF_TECHNICIEN_NON_RENSEIGNE.value)
-        cout_main_oeuvre = Cout(Decimal(str(self.technicien.cout_horaire * duree.heures)))
-        cout_pieces = Cout(sum((p.prix_unitaire.montant * p.quantite_utilisee for p in self.pieces_utilisees), Decimal(0)))
-        cout_total = cout_main_oeuvre + cout_pieces
-        self.cout_total = cout_total
-        return cout_total
+    def ajouter_piece(self, piece: PieceDetachee, quantite: int):
+        if self.statut not in (StatutIntervention.PLANIFIEE, StatutIntervention.EN_COURS):
+            raise ValueError("Impossible d'ajouter des pièces à une intervention terminée ou annulée")
+        self.pieces_utilisees.append((piece, quantite))
+
+    def calculer_cout(self):
+        duree_heures = (self.date_fin - self.date_debut).total_seconds() / 3600
+        self.cout_main_oeuvre = Decimal(str(duree_heures)) * self.technicien.cout_horaire
+        cout_pieces = sum(p.prix_unitaire * q for p, q in self.pieces_utilisees)
+        self.cout_total = self.cout_main_oeuvre + cout_pieces

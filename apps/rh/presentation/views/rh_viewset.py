@@ -7,18 +7,14 @@ from datetime import date
 
 from rh.application.consulter_pointages import ConsulterPointagesUseCase
 from rh.application.embaucher_employe import EmbaucherEmployeUseCase
+from rh.application.enregistrer_pointage import EnregistrerPointageUseCase
 from rh.presentation.serializers.rh_serializers import (
-    EmployeInputSerializer,
-    EmployeOutputSerializer,
-    PointageInputSerializer,
-    PointageOutputSerializer,
+    EmployeInputSerializer, EmployeOutputSerializer,
+    PointageInputSerializer, PointageOutputSerializer,
 )
-
-from rh.application.use_cases.enregistrer_pointage import EnregistrerPointageUseCase
 
 from rh.infrastructure.repositories.django_employe_repository import DjangoEmployeRepository
 from rh.infrastructure.repositories.django_pointage_repository import DjangoPointageRepository
-
 
 class RHViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -28,9 +24,14 @@ class RHViewSet(viewsets.ViewSet):
         self.employe_repo = DjangoEmployeRepository()
         self.pointage_repo = DjangoPointageRepository()
 
-    # --- Employé endpoints ---
+    # Méthode list ajoutée
+    def list(self, request):
+        employes = self.employe_repo.list_actifs()
+        serializer = EmployeOutputSerializer(employes, many=True)
+        return Response(serializer.data)
+
+    # Méthode create pour embaucher
     def create(self, request):
-        """POST /rh/employes/ -> embaucher un employé"""
         serializer = EmployeInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -52,15 +53,12 @@ class RHViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'], url_path='actifs')
     def lister_actifs(self, request):
-        """GET /rh/employes/actifs/ -> liste des employés actifs"""
         employes = self.employe_repo.list_actifs()
         serializer = EmployeOutputSerializer(employes, many=True)
         return Response(serializer.data)
 
-    # --- Pointage endpoints ---
     @action(detail=False, methods=['post'], url_path='pointages')
     def enregistrer_pointage(self, request):
-        """POST /rh/pointages/ -> enregistrer une entrée/sortie"""
         serializer = PointageInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -78,16 +76,14 @@ class RHViewSet(viewsets.ViewSet):
 
     @action(detail=True, methods=['get'], url_path='pointages/(?P<date_str>[0-9]{4}-[0-9]{2}-[0-9]{2})')
     def consulter_pointages(self, request, pk=None, date_str=None):
-        """GET /rh/employes/{id}/pointages/2025-03-27/ -> pointages d'un employé à une date"""
         try:
             jour = date.fromisoformat(date_str)
         except ValueError:
-            return Response({"error": "Format de date invalide (YYYY-MM-DD)"}, status=status.HTTP_400_BAD_REQUEST)
-
+            return Response({"error": "Format de date invalide (YYYY-MM-DD)"}, status=400)
         uc = ConsulterPointagesUseCase(self.pointage_repo, self.employe_repo)
         try:
             pointages = uc.execute(UUID(pk), jour)
             serializer = PointageOutputSerializer(pointages, many=True)
             return Response(serializer.data)
         except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": str(e)}, status=404)

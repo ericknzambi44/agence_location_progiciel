@@ -2,7 +2,9 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
-from stock.presentation.serializers.bien_serializer import BienInputDTO, BienOutputDTO
+from datetime import date
+from uuid import UUID
+from rh.presentation.views.bien_serializer import BienInputSerializer, BienOutputSerializer
 from stock.application.use_cases.creer_bien import CreerBienUseCase
 from stock.application.use_cases.verifier_disponibilite import VerifierDisponibiliteUseCase
 from stock.application.use_cases.changer_etat_bien import ChangerEtatBienUseCase
@@ -16,22 +18,35 @@ class BienViewSet(viewsets.ViewSet):
         self.bien_repo = DjangoBienRepository()
 
     def create(self, request):
-        serializer = BienInputDTO(data=request.data)
+        serializer = BienInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        use_case = CreerBienUseCase(self.bien_repo)
+        uc = CreerBienUseCase(self.bien_repo)
         try:
-            bien = use_case.execute(
+            bien = uc.execute(
                 reference=data['reference'],
                 nom=data['nom'],
                 description=data.get('description', ''),
                 prix=data['prix_unitaire_ht'],
                 date_achat=data.get('date_achat')
             )
-            output = BienOutputDTO.from_entity(bien)
+            output = BienOutputSerializer.from_entity(bien)
             return Response(output, status=status.HTTP_201_CREATED)
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Méthode list ajoutée
+    def list(self, request):
+        biens = self.bien_repo.find_all()
+        data = [BienOutputSerializer.from_entity(b) for b in biens]
+        return Response(data)
+
+    # Méthode retrieve ajoutée
+    def retrieve(self, request, pk=None):
+        bien = self.bien_repo.get(UUID(pk))
+        if not bien:
+            return Response({"error": "Bien introuvable"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(BienOutputSerializer.from_entity(bien))
 
     @action(detail=False, methods=['get'])
     def disponibles(self, request):
@@ -39,7 +54,6 @@ class BienViewSet(viewsets.ViewSet):
         fin = request.query_params.get('fin')
         if not debut or not fin:
             return Response({"error": "Paramètres debut et fin requis"}, status=400)
-        from datetime import date
         try:
             d1 = date.fromisoformat(debut)
             d2 = date.fromisoformat(fin)
@@ -47,8 +61,8 @@ class BienViewSet(viewsets.ViewSet):
             return Response({"error": "Format de date invalide (YYYY-MM-DD)"}, status=400)
         use_case = VerifierDisponibiliteUseCase(self.bien_repo)
         biens = use_case.execute(d1, d2)
-        output = [BienOutputDTO.from_entity(b) for b in biens]
-        return Response(output)
+        data = [BienOutputSerializer.from_entity(b) for b in biens]
+        return Response(data)
 
     @action(detail=True, methods=['patch'])
     def changer_etat(self, request, pk=None):
@@ -57,7 +71,7 @@ class BienViewSet(viewsets.ViewSet):
             return Response({"error": "Etat requis"}, status=400)
         use_case = ChangerEtatBienUseCase(self.bien_repo)
         try:
-            use_case.execute(pk, nouvel_etat)
+            use_case.execute(UUID(pk), nouvel_etat)
             return Response({"status": "ok"})
         except ValueError as e:
             return Response({"error": str(e)}, status=400)

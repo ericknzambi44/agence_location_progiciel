@@ -1,39 +1,33 @@
 from rest_framework import serializers
-from datetime import datetime
-from uuid import UUID
 
-class PlanifierInterventionInputDTO(serializers.Serializer):
+class InterventionInputSerializer(serializers.Serializer):
     bien_id = serializers.UUIDField()
     technicien_id = serializers.UUIDField()
     date_debut = serializers.DateTimeField()
     date_fin = serializers.DateTimeField()
-    description_panne = serializers.CharField(required=False, allow_blank=True)
+    description_panne = serializers.CharField(required=False, allow_blank=True, default="")
 
-class InterventionOutputDTO(serializers.Serializer):
+class InterventionOutputSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     bien_id = serializers.UUIDField()
-    technicien_id = serializers.UUIDField(allow_null=True)
+    technicien_id = serializers.UUIDField()
+    date_debut = serializers.DateTimeField()
+    date_fin = serializers.DateTimeField()
     statut = serializers.CharField()
-    date_debut_prevue = serializers.DateTimeField()
-    date_fin_prevue = serializers.DateTimeField()
-    date_debut_reelle = serializers.DateTimeField(allow_null=True)
-    date_fin_reelle = serializers.DateTimeField(allow_null=True)
-    description_panne = serializers.CharField()
-    rapport_final = serializers.CharField()
-    cout_total = serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True)
+    cout_total = serializers.DecimalField(max_digits=12, decimal_places=2)
 
     @staticmethod
     def from_entity(intervention):
-        return InterventionOutputDTO({
-            'id': intervention.id,
-            'bien_id': intervention.bien.id,
-            'technicien_id': intervention.technicien.id if intervention.technicien else None,
+        return {
+            'id': str(intervention.id),
+            'bien_id': str(intervention.bien_id),
+            'technicien_id': str(intervention.technicien.id),
+            'date_debut': intervention.date_debut.isoformat(),
+            'date_fin': intervention.date_fin.isoformat(),
             'statut': intervention.statut.value,
-            'date_debut_prevue': intervention.date_debut_prevue,
-            'date_fin_prevue': intervention.date_fin_prevue,
-            'date_debut_reelle': intervention.date_debut_reelle,
-            'date_fin_reelle': intervention.date_fin_reelle,
-            'description_panne': intervention.description_panne,
-            'rapport_final': intervention.rapport_final,
-            'cout_total': intervention.cout_total.montant if intervention.cout_total else None
-        }).data
+            'cout_total': float(intervention.cout_total),
+        }
+
+class AjoutPieceSerializer(serializers.Serializer):
+    piece_id = serializers.UUIDField()
+    quantite = serializers.IntegerField(min_value=1)

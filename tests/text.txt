@@ -1,0 +1,9 @@
+# Créer les migrations pour tous les modules
+python manage.py makemigrations stock maintenance rh administration
+python manage.py migrate
+
+# Créer un superutilisateur pour l'admin Django
+python manage.py createsuperuser
+
+# Lancer le serveur
+python manage.py runserver
