@@ -1,18 +1,17 @@
 from maintenance.domain.entities.technicien import Technicien
 from maintenance.infrastructure.models import TechnicienModel
 from shared_kernel.domain.value_objects import Email, PersonName
-from decimal import Decimal
 
 class TechnicienMapper:
     @staticmethod
     def to_domain(model: TechnicienModel) -> Technicien:
         return Technicien(
+            id=model.id,
             nom=PersonName(model.nom),
             prenom=PersonName(model.prenom),
             email=Email(model.email),
-            cout_horaire=Decimal(str(model.cout_horaire)),
-            actif=True,   # pas de champ actif dans le modèle, on met une valeur par défaut
-            id=model.id
+            cout_horaire=model.cout_horaire,
+            est_actif=True
         )
 
     @staticmethod
@@ -23,5 +22,4 @@ class TechnicienMapper:
             prenom=entity.prenom.value,
             email=entity.email.value,
             cout_horaire=entity.cout_horaire
-            # pas de champ actif dans le modèle
         )

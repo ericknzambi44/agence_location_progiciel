@@ -9,6 +9,6 @@ class TerminerInterventionUseCase:
         intervention = self.repo.get(intervention_id)
         if not intervention:
             raise ValueError("Intervention introuvable")
-        intervention.terminer()
+        cout_total = intervention.terminer()
         self.repo.update(intervention)
-        return float(intervention.cout_total)
+        return cout_total

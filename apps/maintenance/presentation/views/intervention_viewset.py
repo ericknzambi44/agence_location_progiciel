@@ -3,23 +3,19 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from uuid import UUID
-from datetime import datetime
 
-from maintenance.application.use_cases.calculer_cout import CalculerCoutInterventionUseCase
 from maintenance.presentation.serializers.intervention_serializer import (
-    InterventionInputSerializer,
-    InterventionOutputSerializer,
-    AjoutPieceSerializer,
+    InterventionInputSerializer, InterventionOutputSerializer
 )
 from maintenance.application.use_cases.planifier_intervention import PlanifierInterventionUseCase
 from maintenance.application.use_cases.demarrer_intervention import DemarrerInterventionUseCase
 from maintenance.application.use_cases.ajouter_piece import AjouterPieceUseCase
 from maintenance.application.use_cases.terminer_intervention import TerminerInterventionUseCase
-
+from maintenance.application.use_cases.calculer_cout import CalculerCoutInterventionUseCase
 from maintenance.infrastructure.repositories.django_intervention_repository import DjangoInterventionRepository
 from maintenance.infrastructure.repositories.django_technicien_repository import DjangoTechnicienRepository
 from maintenance.infrastructure.repositories.django_piece_repository import DjangoPieceDetacheeRepository
-
+from stock.infrastructure.repositories.django_bien_repository import DjangoBienRepository
 
 class InterventionViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -29,71 +25,65 @@ class InterventionViewSet(viewsets.ViewSet):
         self.intervention_repo = DjangoInterventionRepository()
         self.technicien_repo = DjangoTechnicienRepository()
         self.piece_repo = DjangoPieceDetacheeRepository()
-        # plus besoin de self.bien_repo (contournement dans le use case)
+        self.bien_repo = DjangoBienRepository()
 
     def create(self, request):
-        """POST /maintenance/interventions/ - Planifier une intervention"""
         serializer = InterventionInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-
         uc = PlanifierInterventionUseCase(
             self.intervention_repo,
-            self.technicien_repo   # bien_repo supprimé
+            self.technicien_repo,
+            self.bien_repo
         )
         try:
             intervention = uc.execute(
                 bien_id=data['bien_id'],
                 technicien_id=data['technicien_id'],
                 date_debut=data['date_debut'],
-                date_fin=data['date_fin'],
-                description_panne=data.get('description_panne', '')
+                date_fin=data['date_fin']
             )
-            output = InterventionOutputSerializer.from_entity(intervention)
+            output = InterventionOutputSerializer(intervention).data
             return Response(output, status=status.HTTP_201_CREATED)
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'], url_path='demarrer')
     def demarrer(self, request, pk=None):
-        """POST /interventions/{id}/demarrer/"""
         uc = DemarrerInterventionUseCase(self.intervention_repo)
         try:
             uc.execute(UUID(pk))
-            return Response({"status": "ok"})
+            return Response({"status": "intervention démarrée"})
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'], url_path='ajouter_piece')
     def ajouter_piece(self, request, pk=None):
-        """POST /interventions/{id}/ajouter_piece/"""
-        serializer = AjoutPieceSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
+        piece_id = request.data.get('piece_id')
+        quantite = request.data.get('quantite', 1)
+        if not piece_id:
+            return Response({"error": "piece_id requis"}, status=status.HTTP_400_BAD_REQUEST)
         uc = AjouterPieceUseCase(self.intervention_repo, self.piece_repo)
         try:
-            uc.execute(UUID(pk), data['piece_id'], data['quantite'])
+            uc.execute(UUID(pk), UUID(piece_id), int(quantite))
             return Response({"status": "pièce ajoutée"})
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'], url_path='terminer')
     def terminer(self, request, pk=None):
-        """POST /interventions/{id}/terminer/"""
         uc = TerminerInterventionUseCase(self.intervention_repo)
         try:
-            result = uc.execute(UUID(pk))
-            return Response({"status": "ok", "cout_total": result})
+            cout_total = uc.execute(UUID(pk))   # retourne float
+            return Response({"cout_total": cout_total})
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=['get'], url_path='cout')
-    def cout(self, request, pk=None):
-        """GET /interventions/{id}/cout/"""
+    @action(detail=True, methods=['get'], url_path='cout', url_name='cout')
+    def calculer_cout(self, request, pk=None):
         uc = CalculerCoutInterventionUseCase(self.intervention_repo)
         try:
-            details = uc.execute(UUID(pk))
-            return Response(details)
+            cout = uc.execute(UUID(pk))   # retourne un objet Cout
+            return Response({"cout_total": float(cout.valeur)})
         except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

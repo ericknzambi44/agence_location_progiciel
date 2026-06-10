@@ -1,4 +1,5 @@
 from uuid import UUID
+from decimal import Decimal
 from maintenance.domain.repositories.intervention_repository import InterventionRepository
 from maintenance.domain.value_objects.cout import Cout
 
@@ -10,4 +11,5 @@ class CalculerCoutInterventionUseCase:
         intervention = self.repo.get(intervention_id)
         if not intervention:
             raise ValueError("Intervention introuvable")
-        return intervention.calculer_cout()
+        cout_total_float = intervention.calculer_cout() 
+        return Cout(Decimal(str(cout_total_float)))

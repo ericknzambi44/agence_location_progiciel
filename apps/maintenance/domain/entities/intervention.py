@@ -1,56 +1,67 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from uuid import UUID, uuid4
-from typing import List, Tuple
+from datetime import datetime
 from decimal import Decimal
+from typing import List, Tuple, Optional
+from uuid import UUID
+from maintenance.domain.value_objects.cout import Cout
 from maintenance.domain.entities.technicien import Technicien
 from maintenance.domain.entities.piece_detachee import PieceDetachee
-from enum import Enum
-
-class StatutIntervention(Enum):
-    PLANIFIEE = "planifiee"
-    EN_COURS = "en_cours"
-    TERMINEE = "terminee"
-    ANNULEE = "annulee"
 
 @dataclass
 class Intervention:
     bien_id: UUID
-    technicien: Technicien
-    date_debut: datetime
-    date_fin: datetime
-    statut: StatutIntervention = StatutIntervention.PLANIFIEE
+    id: Optional[UUID] = None
+    technicien: Optional[Technicien] = None
+    date_debut: Optional[datetime] = None
+    date_fin: Optional[datetime] = None
+    statut: str = "planifiee"
     pieces_utilisees: List[Tuple[PieceDetachee, int]] = field(default_factory=list)
-    cout_main_oeuvre: Decimal = Decimal('0')
-    cout_total: Decimal = Decimal('0')
-    id: UUID = field(default_factory=uuid4)
+    _cout_main_oeuvre: Decimal = field(default=Decimal(0), repr=False)
+    _cout_total: Decimal = field(default=Decimal(0), repr=False)
 
     def __post_init__(self):
-        # Utiliser timezone-aware pour la comparaison (UTC)
-        now = datetime.now(timezone.utc)
-        if self.date_debut < now:
-            raise ValueError("La date de début ne peut pas être dans le passé")
-        if self.date_fin <= self.date_debut:
-            raise ValueError("La date de fin doit être postérieure à la date de début")
+        if self.date_debut and self.date_fin and self.date_debut >= self.date_fin:
+            raise ValueError("La date de début doit être antérieure à la date de fin")
+        if self.statut not in ("planifiee", "en_cours", "terminee", "annulee"):
+            raise ValueError("Statut invalide")
 
-    def demarrer(self):
-        if self.statut != StatutIntervention.PLANIFIEE:
-            raise ValueError("Seule une intervention planifiée peut être démarrée")
-        self.statut = StatutIntervention.EN_COURS
+    def planifier(self, technicien: Technicien, debut: datetime, fin: datetime) -> None:
+        self.technicien = technicien
+        self.date_debut = debut
+        self.date_fin = fin
+        self.statut = "planifiee"
 
-    def terminer(self):
-        if self.statut != StatutIntervention.EN_COURS:
-            raise ValueError("Seule une intervention en cours peut être terminée")
-        self.statut = StatutIntervention.TERMINEE
-        self.calculer_cout()
+    def demarrer(self) -> None:
+        if self.statut != "planifiee":
+            raise ValueError("Seule une intervention planifiée peut démarrer")
+        self.statut = "en_cours"
 
-    def ajouter_piece(self, piece: PieceDetachee, quantite: int):
-        if self.statut not in (StatutIntervention.PLANIFIEE, StatutIntervention.EN_COURS):
-            raise ValueError("Impossible d'ajouter des pièces à une intervention terminée ou annulée")
+    def ajouter_piece(self, piece: PieceDetachee, quantite: int) -> None:
+        if self.statut not in ("planifiee", "en_cours"):
+            raise ValueError("Impossible d'ajouter des pièces")
         self.pieces_utilisees.append((piece, quantite))
 
-    def calculer_cout(self):
+    def terminer(self) -> float:
+        if self.statut != "en_cours":
+            raise ValueError("Seule une intervention en cours peut être terminée")
+        if not self.date_debut or not self.date_fin:
+            raise ValueError("Dates non définies")
+        self.statut = "terminee"
+        return self.calculer_cout()
+
+    def calculer_cout(self) -> float:
+        if self.statut not in ("en_cours", "terminee"):
+            raise ValueError("Coût calculable seulement pour intervention en cours/terminée")
+        if not self.date_debut or not self.date_fin:
+            raise ValueError("Dates manquantes")
         duree_heures = (self.date_fin - self.date_debut).total_seconds() / 3600
-        self.cout_main_oeuvre = Decimal(str(duree_heures)) * self.technicien.cout_horaire
-        cout_pieces = sum(p.prix_unitaire * q for p, q in self.pieces_utilisees)
-        self.cout_total = self.cout_main_oeuvre + cout_pieces
+        if duree_heures <= 0:
+            raise ValueError("Durée invalide")
+        if not self.technicien or self.technicien.cout_horaire <= 0:
+            raise ValueError("Coût horaire technicien invalide")
+        cout_main_oeuvre = Decimal(duree_heures) * Decimal(str(self.technicien.cout_horaire))
+        cout_pieces = sum(Decimal(str(piece.prix_unitaire)) * quantite for piece, quantite in self.pieces_utilisees)
+        cout_total = cout_main_oeuvre + cout_pieces
+        self._cout_main_oeuvre = cout_main_oeuvre
+        self._cout_total = cout_total
+        return float(cout_total)

@@ -1,40 +1,25 @@
 from abc import ABC, abstractmethod
-from typing import Optional, List
-from uuid import UUID
 from datetime import datetime
+from typing import List, Optional
+from uuid import UUID
 from maintenance.domain.entities.intervention import Intervention
 
 class InterventionRepository(ABC):
     @abstractmethod
-    def get(self, id: UUID) -> Optional[Intervention]:
-        pass
-
+    def get(self, id: UUID) -> Optional[Intervention]: ...
     @abstractmethod
-    def add(self, intervention: Intervention) -> None:
-        pass
-
+    def add(self, intervention: Intervention) -> None: ...
     @abstractmethod
-    def update(self, intervention: Intervention) -> None:
-        """Met à jour une intervention existante."""
-        pass
-
+    def update(self, intervention: Intervention) -> None: ...
     @abstractmethod
-    def remove(self, intervention: Intervention) -> None:
-        pass
-
+    def remove(self, intervention: Intervention) -> None: ...
     @abstractmethod
-    def find_by_bien(self, bien_id: UUID) -> List[Intervention]:
-        pass
-
+    def find_by_bien(self, bien_id: UUID) -> List[Intervention]: ...
     @abstractmethod
-    def find_by_technicien(self, technicien_id: UUID) -> List[Intervention]:
-        pass
-
+    def find_by_technicien(self, technicien_id: UUID) -> List[Intervention]: ...
     @abstractmethod
-    def find_conflits(self, technicien_id: UUID, debut: datetime, fin: datetime) -> List[Intervention]:
-        """Retourne les interventions du technicien qui chevauchent la période."""
-        pass
-
+    def find_by_periode(self, debut: datetime, fin: datetime) -> List[Intervention]: ...
     @abstractmethod
-    def find_all(self) -> List[Intervention]:
-        pass
+    def find_conflits(self, technicien_id: UUID, debut: datetime, fin: datetime) -> List[Intervention]: ...
+    @abstractmethod
+    def find_all(self) -> List[Intervention]: ...
