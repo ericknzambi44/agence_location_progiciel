@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import BienModel, CategorieModel, MouvementStockModel, DisponibilitePeriodeModel
+from .infrastructure.models import BienModel, CategorieModel, MouvementStockModel, DisponibilitePeriodeModel
 
 @admin.register(BienModel)
 class BienModelAdmin(admin.ModelAdmin):

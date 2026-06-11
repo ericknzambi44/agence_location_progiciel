@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import AgenceModel, ModuleConfigModel
+from .infrastructure.models import AgenceModel, ModuleConfigModel
 
 @admin.register(AgenceModel)
 class AgenceModelAdmin(admin.ModelAdmin):

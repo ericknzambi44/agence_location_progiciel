@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import EmployeModel, PointageModel, EvaluationModel, RoleModel
+from .infrastructure.models import EmployeModel, PointageModel, EvaluationModel, RoleModel
 
 @admin.register(EmployeModel)
 class EmployeModelAdmin(admin.ModelAdmin):
