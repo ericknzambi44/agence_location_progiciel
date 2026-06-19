@@ -17,12 +17,21 @@ from administration.infrastructure.repositories.django_agence_repository import 
 
 class AdminViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
+    # Désactiver la pagination pour ce ViewSet (retourne une liste brute)
+    pagination_class = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.agence_repo = DjangoAgenceRepository()
         self.module_repo = DjangoModuleConfigRepository()
 
+    # --- LIST : GET /admin/ -> liste des agences actives ---
+    def list(self, request):
+        agences = self.agence_repo.list_actives()
+        serializer = AgenceOutputSerializer(agences, many=True)
+        return Response(serializer.data)
+
+    # --- CREATE : POST /admin/ -> créer une agence ---
     def create(self, request):
         serializer = AgenceInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -35,7 +44,7 @@ class AdminViewSet(viewsets.ViewSet):
                 adresse_ligne2=data.get('adresse_ligne2', ''),
                 code_postal=data['code_postal'],
                 ville=data['ville'],
-                pays=data.get('pays', 'France'),
+                pays=data['pays'],
                 telephone=data['telephone'],
                 email=data['email']
             )
@@ -44,11 +53,7 @@ class AdminViewSet(viewsets.ViewSet):
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=['get'], url_path='agences', url_name='agences')
-    def lister_agences(self, request):
-        agences = self.agence_repo.list_actives()
-        serializer = AgenceOutputSerializer(agences, many=True)
-        return Response(serializer.data)
+    # --- MODULES ---
 
     @action(detail=False, methods=['get'], url_path='modules', url_name='modules')
     def lister_modules(self, request):
@@ -56,32 +61,32 @@ class AdminViewSet(viewsets.ViewSet):
         serializer = ModuleConfigOutputSerializer(modules, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'], url_path='modules/actifs', url_name='modules-actifs')
+    @action(detail=False, methods=['get'], url_path='modules/actifs', url_name='modules_actifs')
     def lister_modules_actifs(self, request):
         uc = ListerModulesActifsUseCase(self.module_repo)
         modules = uc.execute()
         serializer = ModuleConfigOutputSerializer(modules, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['post'], url_path='activer', url_name='activer-module')
+    @action(detail=True, methods=['post'], url_path='activer', url_name='activer_module')
     def activer_module(self, request, pk=None):
         uc = ActiverModuleUseCase(self.module_repo)
         try:
             uc.execute(UUID(pk))
             return Response({"status": "module activé"})
         except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": str(e)}, status=404)
 
-    @action(detail=True, methods=['post'], url_path='desactiver', url_name='desactiver-module')
+    @action(detail=True, methods=['post'], url_path='desactiver', url_name='desactiver_module')
     def desactiver_module(self, request, pk=None):
         uc = DesactiverModuleUseCase(self.module_repo)
         try:
             uc.execute(UUID(pk))
             return Response({"status": "module désactivé"})
         except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": str(e)}, status=404)
 
-    @action(detail=True, methods=['patch'], url_path='configurer', url_name='configurer-module')
+    @action(detail=True, methods=['patch'], url_path='configurer', url_name='configurer_module')
     def configurer_module(self, request, pk=None):
         serializer = ModuleConfigParamInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -90,4 +95,4 @@ class AdminViewSet(viewsets.ViewSet):
             uc.execute(UUID(pk), serializer.validated_data['parametres'])
             return Response({"status": "configuration mise à jour"})
         except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": str(e)}, status=404)

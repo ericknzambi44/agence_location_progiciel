@@ -20,7 +20,7 @@ def test_creer_intervention():
         date_debut=now + timedelta(days=1),
         date_fin=now + timedelta(days=1, hours=2)
     )
-    # Correction : statut est une chaîne, pas un enum
+    
     assert intervention.statut == "planifiee"
     assert intervention.technicien == technicien
     assert intervention.date_debut is not None

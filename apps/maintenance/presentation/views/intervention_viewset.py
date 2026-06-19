@@ -7,6 +7,8 @@ from uuid import UUID
 from maintenance.presentation.serializers.intervention_serializer import (
     InterventionInputSerializer, InterventionOutputSerializer
 )
+from maintenance.presentation.serializers.technicien_serializer import TechnicienSerializer
+from maintenance.presentation.serializers.piece_serializer import PieceDetacheeSerializer
 from maintenance.application.use_cases.planifier_intervention import PlanifierInterventionUseCase
 from maintenance.application.use_cases.demarrer_intervention import DemarrerInterventionUseCase
 from maintenance.application.use_cases.ajouter_piece import AjouterPieceUseCase
@@ -27,6 +29,23 @@ class InterventionViewSet(viewsets.ViewSet):
         self.piece_repo = DjangoPieceDetacheeRepository()
         self.bien_repo = DjangoBienRepository()
 
+    # --- LIST : GET /interventions/ ---
+    def list(self, request):
+        """Retourne la liste de toutes les interventions."""
+        interventions = self.intervention_repo.find_all()
+        serializer = InterventionOutputSerializer(interventions, many=True)
+        return Response(serializer.data)
+
+    # --- RETRIEVE : GET /interventions/{id}/ ---
+    def retrieve(self, request, pk=None):
+        """Retourne les détails d'une intervention spécifique."""
+        intervention = self.intervention_repo.get(UUID(pk))
+        if not intervention:
+            return Response({"error": "Intervention non trouvée"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = InterventionOutputSerializer(intervention)
+        return Response(serializer.data)
+
+    # --- CREATE : POST /interventions/ ---
     def create(self, request):
         serializer = InterventionInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -48,6 +67,7 @@ class InterventionViewSet(viewsets.ViewSet):
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    # --- DÉMARRER ---
     @action(detail=True, methods=['post'], url_path='demarrer')
     def demarrer(self, request, pk=None):
         uc = DemarrerInterventionUseCase(self.intervention_repo)
@@ -57,6 +77,7 @@ class InterventionViewSet(viewsets.ViewSet):
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    # --- AJOUTER PIÈCE ---
     @action(detail=True, methods=['post'], url_path='ajouter_piece')
     def ajouter_piece(self, request, pk=None):
         piece_id = request.data.get('piece_id')
@@ -70,6 +91,7 @@ class InterventionViewSet(viewsets.ViewSet):
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    # --- TERMINER ---
     @action(detail=True, methods=['post'], url_path='terminer')
     def terminer(self, request, pk=None):
         uc = TerminerInterventionUseCase(self.intervention_repo)
@@ -79,6 +101,7 @@ class InterventionViewSet(viewsets.ViewSet):
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    # --- CALCULER COÛT ---
     @action(detail=True, methods=['get'], url_path='cout', url_name='cout')
     def calculer_cout(self, request, pk=None):
         uc = CalculerCoutInterventionUseCase(self.intervention_repo)
@@ -87,3 +110,19 @@ class InterventionViewSet(viewsets.ViewSet):
             return Response({"cout_total": float(cout.valeur)})
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    # --- LISTE DES PIÈCES ---
+    @action(detail=False, methods=['get'], url_path='pieces')
+    def lister_pieces(self, request):
+        """GET /interventions/pieces/ -> liste toutes les pièces détachées"""
+        pieces = self.piece_repo.find_all()
+        serializer = PieceDetacheeSerializer(pieces, many=True)
+        return Response(serializer.data)
+
+    # --- LISTE DES TECHNICIENS ---
+    @action(detail=False, methods=['get'], url_path='techniciens')
+    def lister_techniciens(self, request):
+        """GET /interventions/techniciens/ -> liste tous les techniciens (pour le sélecteur)"""
+        techniciens = self.technicien_repo.get_all()
+        serializer = TechnicienSerializer(techniciens, many=True)
+        return Response(serializer.data)

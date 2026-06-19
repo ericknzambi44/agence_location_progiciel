@@ -28,20 +28,20 @@ class DjangoModuleConfigRepository(ModuleConfigRepository):
         config.id = model.id
 
     def update(self, config: ModuleConfig) -> None:
-     model = ModuleConfigMapper.to_model(config)
-     obj, created = ModuleConfigModel.objects.update_or_create(
-        id=model.id,
-        defaults={
-            'code': model.code,
-            'nom': model.nom,
-            'description': model.description,
-            'active': model.active,
-            'ordre_affichage': model.ordre_affichage,
-            'parametres': model.parametres,
-        }
-    )
-     if created:
-        config.id = obj.id
+        model = ModuleConfigMapper.to_model(config)
+        obj, created = ModuleConfigModel.objects.update_or_create(
+            id=model.id,
+            defaults={
+                'code': model.code,
+                'nom': model.nom,
+                'description': model.description,
+                'active': model.active,
+                'ordre_affichage': model.ordre_affichage,
+                'parametres': model.parametres,
+            }
+        )
+        if created:
+            config.id = obj.id
 
     def list_all(self) -> List[ModuleConfig]:
         models = ModuleConfigModel.objects.all().order_by('ordre_affichage')

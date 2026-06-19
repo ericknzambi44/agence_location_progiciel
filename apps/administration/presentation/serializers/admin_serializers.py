@@ -15,7 +15,7 @@ class AgenceOutputSerializer(serializers.Serializer):
     code = serializers.CharField()
     nom = serializers.CharField()
     adresse_ligne1 = serializers.CharField(source='adresse.rue')
-    adresse_ligne2 = serializers.CharField(source='adresse.rue2', default='')  # si pas d'attribut rue2, ajustez
+    adresse_ligne2 = serializers.CharField(source='adresse.rue2', default='')
     code_postal = serializers.CharField(source='adresse.code_postal')
     ville = serializers.CharField(source='adresse.ville')
     pays = serializers.CharField(source='adresse.pays')

@@ -7,6 +7,7 @@ from rh.infrastructure.models import EmployeModel
 from rh.infrastructure.mappers.employe_mapper import EmployeMapper
 from shared_kernel.domain.value_objects import Email
 from rh.domain.value_objects.matricule import Matricule
+import traceback  # <--- pour imprimer la trace
 
 class DjangoEmployeRepository(EmployeRepository):
     def get(self, id: UUID) -> Optional[Employe]:
@@ -41,4 +42,12 @@ class DjangoEmployeRepository(EmployeRepository):
 
     def list_actifs(self) -> List[Employe]:
         models = EmployeModel.objects.filter(est_actif=True)
-        return [EmployeMapper.to_domain(m) for m in models]
+        result = []
+        for m in models:
+            try:
+                result.append(EmployeMapper.to_domain(m))
+            except Exception as e:
+                print(f"Erreur sur l'employé {m.id} (matricule {m.matricule}): {e}")
+                traceback.print_exc()
+                # On ignore l'employé problématique pour l'instant
+        return result

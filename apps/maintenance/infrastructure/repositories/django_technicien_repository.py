@@ -14,6 +14,13 @@ class DjangoTechnicienRepository(TechnicienRepository):
         except ObjectDoesNotExist:
             return None
 
+    def get_by_email(self, email: str) -> Optional[Technicien]:
+        try:
+            model = TechnicienModel.objects.get(email=email)
+            return TechnicienMapper.to_domain(model)
+        except ObjectDoesNotExist:
+            return None
+
     def add(self, technicien: Technicien) -> None:
         model = TechnicienMapper.to_model(technicien)
         model.save()
