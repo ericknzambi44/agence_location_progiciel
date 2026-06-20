@@ -1,21 +1,25 @@
+"""
+Implémentation concrète du repository pour les pièces détachées avec Django ORM.
+"""
 from django.core.exceptions import ObjectDoesNotExist
 from typing import Optional, List
 from uuid import UUID
+
 from maintenance.domain.repositories.piece_repository import PieceDetacheeRepository
 from maintenance.domain.entities.piece_detachee import PieceDetachee
 from maintenance.infrastructure.models import PieceDetacheeModel
 from maintenance.infrastructure.mappers.piece_mapper import PieceDetacheeMapper
 
+
 class DjangoPieceDetacheeRepository(PieceDetacheeRepository):
+    """Repository Django pour les pièces détachées."""
+
     def get(self, piece_id: UUID) -> Optional[PieceDetachee]:
         try:
             model = PieceDetacheeModel.objects.get(id=piece_id)
             return PieceDetacheeMapper.to_domain(model)
         except ObjectDoesNotExist:
             return None
-
-    def get_by_reference(self, reference: str) -> Optional[PieceDetachee]:
-        return self.find_by_reference(reference)
 
     def find_by_reference(self, reference: str) -> Optional[PieceDetachee]:
         try:
@@ -24,10 +28,14 @@ class DjangoPieceDetacheeRepository(PieceDetacheeRepository):
         except ObjectDoesNotExist:
             return None
 
+    # Alias pour compatibilité (appelé par certains use cases)
+    def get_by_reference(self, reference: str) -> Optional[PieceDetachee]:
+        return self.find_by_reference(reference)
+
     def add(self, piece: PieceDetachee) -> None:
         model = PieceDetacheeMapper.to_model(piece)
         model.save()
-        piece.id = model.id
+        piece.id = model.id  # Synchronisation de l'identifiant
 
     def update(self, piece: PieceDetachee) -> None:
         model = PieceDetacheeMapper.to_model(piece)

@@ -58,12 +58,20 @@ class DjangoInterventionRepository(InterventionRepository):
         return [InterventionMapper.to_domain(m, self.technicien_repo, self.piece_repo) for m in models]
 
     def find_by_periode(self, debut: datetime, fin: datetime) -> List[Intervention]:
-        models = InterventionModel.objects.filter(date_debut__lt=fin, date_fin__gt=debut)
+        # Seules les interventions actives (planifiées ou en cours) génèrent des conflits
+        models = InterventionModel.objects.filter(
+            date_debut__lt=fin,
+            date_fin__gt=debut,
+            statut__in=['planifiee', 'en_cours']
+        )
         return [InterventionMapper.to_domain(m, self.technicien_repo, self.piece_repo) for m in models]
 
     def find_conflits(self, technicien_id: UUID, debut: datetime, fin: datetime) -> List[Intervention]:
         models = InterventionModel.objects.filter(
-            technicien_id=technicien_id, date_debut__lt=fin, date_fin__gt=debut
+            technicien_id=technicien_id,
+            date_debut__lt=fin,
+            date_fin__gt=debut,
+            statut__in=['planifiee', 'en_cours']
         )
         return [InterventionMapper.to_domain(m, self.technicien_repo, self.piece_repo) for m in models]
 

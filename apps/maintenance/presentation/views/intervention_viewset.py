@@ -18,6 +18,7 @@ from maintenance.infrastructure.repositories.django_intervention_repository impo
 from maintenance.infrastructure.repositories.django_technicien_repository import DjangoTechnicienRepository
 from maintenance.infrastructure.repositories.django_piece_repository import DjangoPieceDetacheeRepository
 from stock.infrastructure.repositories.django_bien_repository import DjangoBienRepository
+from maintenance.application.use_cases.retirer_piece import RetirerPieceUseCase
 
 class InterventionViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -126,3 +127,17 @@ class InterventionViewSet(viewsets.ViewSet):
         techniciens = self.technicien_repo.get_all()
         serializer = TechnicienSerializer(techniciens, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['delete'], url_path='pieces/(?P<piece_id>[^/.]+)')
+    def retirer_piece(self, request, pk=None, piece_id=None):
+        """
+        DELETE /interventions/{id}/pieces/{piece_id}/
+        Retire une pièce de l'intervention (diminue la quantité de 1,
+        ou supprime l'entrée si la quantité atteint 0).
+        """
+        uc = RetirerPieceUseCase(self.intervention_repo, self.piece_repo)
+        try:
+            uc.execute(UUID(pk), UUID(piece_id))
+            return Response({"status": "pièce retirée"})
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
