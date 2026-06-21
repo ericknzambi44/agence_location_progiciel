@@ -9,7 +9,7 @@ class AgenceModel(models.Model):
     adresse_ligne2 = models.CharField(max_length=255, blank=True, null=True)
     code_postal = models.CharField(max_length=20)
     ville = models.CharField(max_length=100)
-    pays = models.CharField(max_length=100, default='France')
+    pays = models.CharField(max_length=100, default='RDC')
     telephone = models.CharField(max_length=30)
     email = models.EmailField()
     actif = models.BooleanField(default=True)

@@ -4,6 +4,7 @@ from uuid import UUID
 from administration.domain.entities.module_config import ModuleConfig
 from administration.domain.value_objects.code_module import CodeModule
 
+
 class ModuleConfigRepository(ABC):
     @abstractmethod
     def get(self, id: UUID) -> Optional[ModuleConfig]:

@@ -6,6 +6,7 @@ from administration.domain.value_objects.telephone import Telephone
 from administration.domain.value_objects.code_agence import CodeAgence
 from shared_kernel.domain.value_objects import Email
 
+
 @dataclass
 class Agence:
     code: CodeAgence

@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 from enum import Enum
 
+
 class CodeAgenceValidationError(Enum):
     VIDE = "Le code agence ne peut pas être vide."
-    FORMAT_INVALIDE = "Le code agence doit contenir 3 à 10 lettres majuscules ou chiffres."
+    FORMAT_INVALIDE = "Le code doit contenir des lettres majuscules et des chiffres, 3 à 10 caractères."
+
 
 @dataclass(frozen=True)
 class CodeAgence:

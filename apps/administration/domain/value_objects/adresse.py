@@ -1,27 +1,33 @@
+"""
+Value Object représentant une adresse postale.
+"""
 from dataclasses import dataclass
 from enum import Enum
 
+
 class AdresseValidationError(Enum):
-    RUE_VIDE = "La rue est obligatoire."
+    LIGNE1_VIDE = "La ligne 1 de l'adresse est obligatoire."
     VILLE_VIDE = "La ville est obligatoire."
-    CODE_POSTAL_INVALIDE = "Le code postal doit comporter 5 chiffres."
-    PAYS_VIDE = "Le pays est obligatoire."
+    CODE_POSTAL_INVALIDE = "Le code postal doit être alphanumérique et faire entre 3 et 10 caractères."
+
 
 @dataclass(frozen=True)
 class Adresse:
-    rue: str
-    code_postal: str
-    ville: str
-    pays: str
+    ligne1: str           # <-- correspond à adresse_ligne1 dans le formulaire
+    ligne2: str = ""      # <-- correspond à adresse_ligne2
+    code_postal: str = ""
+    ville: str = ""
+    pays: str = "France"
 
     def __post_init__(self):
-        if not self.rue or not self.rue.strip():
-            raise ValueError(AdresseValidationError.RUE_VIDE.value)
+        if not self.ligne1 or not self.ligne1.strip():
+            raise ValueError(AdresseValidationError.LIGNE1_VIDE.value)
         if not self.ville or not self.ville.strip():
             raise ValueError(AdresseValidationError.VILLE_VIDE.value)
-        if not self.pays or not self.pays.strip():
-            raise ValueError(AdresseValidationError.PAYS_VIDE.value)
-        cp = self.code_postal.strip()
-        import re
-        if not re.match(r'^\d{5}$', cp):
+        if self.code_postal and not self._code_postal_valide(self.code_postal):
             raise ValueError(AdresseValidationError.CODE_POSTAL_INVALIDE.value)
+
+    @staticmethod
+    def _code_postal_valide(cp: str) -> bool:
+        import re
+        return bool(re.match(r'^[A-Z0-9]{3,10}$', cp, re.IGNORECASE))

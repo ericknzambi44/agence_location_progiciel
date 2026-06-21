@@ -3,9 +3,9 @@ from typing import Optional, List
 from uuid import UUID
 from administration.domain.repositories.agence_repository import AgenceRepository
 from administration.domain.entities.agence import Agence
-from administration.domain.value_objects.code_agence import CodeAgence
 from administration.infrastructure.models import AgenceModel
 from administration.infrastructure.mappers.agence_mapper import AgenceMapper
+
 
 class DjangoAgenceRepository(AgenceRepository):
     def get(self, id: UUID) -> Optional[Agence]:
@@ -15,12 +15,9 @@ class DjangoAgenceRepository(AgenceRepository):
         except ObjectDoesNotExist:
             return None
 
-    def get_by_code(self, code: CodeAgence) -> Optional[Agence]:
-        try:
-            model = AgenceModel.objects.get(code=code.value)
-            return AgenceMapper.to_domain(model)
-        except ObjectDoesNotExist:
-            return None
+    def get_by_code(self, code) -> Optional[Agence]:
+        # Si nous avons un champ code dans le modèle, sinon on peut chercher par nom
+        raise NotImplementedError
 
     def get_by_nom(self, nom: str) -> Optional[Agence]:
         try:
