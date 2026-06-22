@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'rh',
     'administration',
     'authentication',
+    'location',
 ]
 
 # --- Middleware (ordre crucial) ---

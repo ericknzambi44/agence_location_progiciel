@@ -8,7 +8,8 @@ urlpatterns = [
     path('api/maintenance/', include('maintenance.presentation.urls')),
     path('api/rh/', include('rh.presentation.urls')),
     path('api/admin/', include('administration.presentation.urls')),
-     path('api-token-auth/', token_views.obtain_auth_token),  # endpoint pour obtenir token
-     path('api/auth/', include('authentication.urls')),
+    path('api-token-auth/', token_views.obtain_auth_token),  # endpoint pour obtenir token
+    path('api/auth/', include('authentication.urls')),
+    path('api/location/', include('location.presentation.urls')),
     
 ]
