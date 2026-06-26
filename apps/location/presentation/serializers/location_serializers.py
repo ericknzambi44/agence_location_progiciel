@@ -1,8 +1,5 @@
 from rest_framework import serializers
 
-from location.domain.value_objects.regle_tarification import TypeRegle
-
-
 class ClientInputSerializer(serializers.Serializer):
     nom = serializers.CharField(max_length=100)
     prenom = serializers.CharField(max_length=100)
@@ -34,27 +31,10 @@ class ContratOutputSerializer(serializers.Serializer):
     bien_id = serializers.UUIDField()
     date_debut = serializers.DateField()
     date_fin = serializers.DateField()
-    montant_total = serializers.DecimalField(max_digits=12, decimal_places=2)
+  
+    montant_total = serializers.DecimalField(  
+        max_digits=12,
+        decimal_places=2,
+        source='montant_total.valeur'
+    )
     statut = serializers.CharField()
-
-
-
-
-class RegleTarificationSerializer(serializers.Serializer):
-    type = serializers.ChoiceField(choices=[t.value for t in TypeRegle])
-    valeur = serializers.DecimalField(max_digits=10, decimal_places=2)
-    duree_min = serializers.IntegerField(min_value=0)
-    duree_max = serializers.IntegerField(required=False, allow_null=True)
-    type_bien_id = serializers.UUIDField(required=False, allow_null=True)
-    periode_debut = serializers.DateField(required=False, allow_null=True)
-    periode_fin = serializers.DateField(required=False, allow_null=True)
-    description = serializers.CharField(required=False, allow_blank=True)
-    active = serializers.BooleanField(default=True)
-
-
-class RegleTarificationInputSerializer(serializers.Serializer):
-    regles = RegleTarificationSerializer(many=True)
-
-
-class RegleTarificationOutputSerializer(RegleTarificationSerializer):
-    pass    

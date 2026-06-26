@@ -22,8 +22,21 @@ class DjangoContratRepository(ContratRepository):
         contrat.id = model.id
 
     def update(self, contrat: Contrat) -> None:
+        """Met à jour un contrat existant en utilisant update_or_create."""
         model = ContratMapper.to_model(contrat)
-        model.save()
+        obj, created = ContratModel.objects.update_or_create(
+            id=model.id,
+            defaults={
+                'client_id': model.client_id,
+                'bien_id': model.bien_id,
+                'date_debut': model.date_debut,
+                'date_fin': model.date_fin,
+                'montant_total': model.montant_total,
+                'statut': model.statut,
+            }
+        )
+        if created:
+            contrat.id = obj.id
 
     def find_by_bien_et_periode(self, bien_id: UUID, debut: date, fin: date) -> List[Contrat]:
         models = ContratModel.objects.filter(

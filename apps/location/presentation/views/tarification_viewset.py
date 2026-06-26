@@ -14,8 +14,6 @@ from location.infrastructure.repositories.django_regle_tarification_repository i
     DjangoRegleTarificationRepository
 )
 from administration.infrastructure.repositories.django_agence_repository import DjangoAgenceRepository
-
-# IMPORT CORRIGÉ : utiliser le bon fichier de serializers
 from location.presentation.serializers.tarification_serializers import (
     RegleTarificationInputSerializer,
     RegleTarificationOutputSerializer
@@ -68,15 +66,16 @@ class TarificationViewSet(viewsets.ViewSet):
         serializer.is_valid(raise_exception=True)
         regles_data = serializer.validated_data['regles']
 
-        # Construction des objets du domaine
+        # Construction des objets du domaine 
         regles_obj = []
         for r in regles_data:
             regle = RegleTarification(
-                type=TypeRegle(r['type']),           # r['type'] est une chaîne, convertie en enum
+                type=TypeRegle(r['type']),
                 valeur=r['valeur'],
                 duree_min=r['duree_min'],
                 duree_max=r.get('duree_max'),
-                type_bien_id=r.get('type_bien_id'),
+                bien_id=r.get('bien_id'),         
+                categorie_id=r.get('categorie_id'),  
                 periode_debut=r.get('periode_debut'),
                 periode_fin=r.get('periode_fin'),
                 description=r.get('description', ''),

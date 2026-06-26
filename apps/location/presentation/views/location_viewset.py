@@ -184,3 +184,21 @@ class LocationViewSet(viewsets.ViewSet):
             return Response({"montant_total": float(montant.valeur)})
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+
+
+
+    @action(detail=True, methods=['post'], url_path='retourner')
+    def retourner(self, request, pk=None):
+        """
+        POST /location/contrats/{id}/retourner/
+        Termine un contrat actif.
+        """
+        uc = RetournerBienUseCase(self.contrat_repo)
+        try:
+            # pk est déjà un objet UUID (grâce au convertisseur <uuid:pk> dans l'URL)
+            uc.execute(pk)  # on passe directement pk, sans UUID(pk)
+            return Response({"status": "contrat terminé"})
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)    

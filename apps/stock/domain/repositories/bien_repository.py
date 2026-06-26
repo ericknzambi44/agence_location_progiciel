@@ -20,3 +20,9 @@ class BienRepository(ABC):
     def find_disponibles_periode(self, debut: date, fin: date) -> List[Bien]: ...
     @abstractmethod
     def find_all(self) -> List[Bien]: ...
+
+
+    @abstractmethod
+    def update(self, bien: Bien) -> None:
+        """Met à jour un bien existant."""
+        pass

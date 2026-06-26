@@ -1,6 +1,7 @@
 from django.db import models
 import uuid
 
+
 class CategorieModel(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nom = models.CharField(max_length=100, unique=True)
@@ -9,6 +10,7 @@ class CategorieModel(models.Model):
 
     class Meta:
         db_table = 'stock_categorie'
+
 
 class BienModel(models.Model):
     ETAT_CHOICES = [
@@ -22,12 +24,14 @@ class BienModel(models.Model):
     nom = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     prix_unitaire_ht = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    devise = models.CharField(max_length=3, default='USD')  
     date_achat = models.DateField(null=True, blank=True)
     etat = models.CharField(max_length=20, choices=ETAT_CHOICES, default='disponible')
     categorie = models.ForeignKey(CategorieModel, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         db_table = 'stock_bien'
+
 
 class MouvementStockModel(models.Model):
     TYPE_CHOICES = [
@@ -47,6 +51,7 @@ class MouvementStockModel(models.Model):
 
     class Meta:
         db_table = 'stock_mouvement'
+
 
 class DisponibilitePeriodeModel(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

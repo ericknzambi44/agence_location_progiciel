@@ -1,6 +1,5 @@
 from django.db import models
 import uuid
-
 from location.domain.value_objects.regle_tarification import TypeRegle
 
 
@@ -35,16 +34,22 @@ class ContratModel(models.Model):
         db_table = 'location_contrat'
 
 
-
-
 class RegleTarificationModel(models.Model):
+    """
+    Modèle Django pour les règles de tarification.
+    Supporte le ciblage par bien, par catégorie, ou global.
+    """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     agence_id = models.UUIDField(db_index=True)
     type = models.CharField(max_length=10, choices=[(t.value, t.value) for t in TypeRegle])
     valeur = models.DecimalField(max_digits=10, decimal_places=2)
     duree_min = models.PositiveIntegerField()
     duree_max = models.PositiveIntegerField(null=True, blank=True)
-    type_bien_id = models.UUIDField(null=True, blank=True)
+
+    # Ciblage : bien spécifique ou catégorie (ou global si les deux sont null)
+    bien_id = models.UUIDField(null=True, blank=True, db_index=True)
+    categorie_id = models.UUIDField(null=True, blank=True, db_index=True)
+
     periode_debut = models.DateField(null=True, blank=True)
     periode_fin = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
@@ -52,3 +57,14 @@ class RegleTarificationModel(models.Model):
 
     class Meta:
         db_table = 'location_regle_tarification'
+        # Contrainte pour garantir qu'une règle ne cible pas à la fois un bien et une catégorie
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(bien_id__isnull=True, categorie_id__isnull=True) |
+                    models.Q(bien_id__isnull=False, categorie_id__isnull=True) |
+                    models.Q(bien_id__isnull=True, categorie_id__isnull=False)
+                ),
+                name='either_bien_or_categorie'
+            )
+        ]
