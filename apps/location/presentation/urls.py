@@ -33,6 +33,9 @@ urlpatterns = [
          location_view({'post': 'calculer_montant'}),
          name='calculer-montant'),
 
+
+     path('contrats/<uuid:pk>/', location_view({'get': 'retrieve'}), name='contrat-detail'),    
+
     # ---- Gestion des règles de tarification ----
     path('tarification/',
          tarif_view,
