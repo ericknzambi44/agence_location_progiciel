@@ -128,22 +128,14 @@ class Intervention:
         """
         Vérifie si cette intervention chevauche une autre intervention
         (même technicien ou même bien) sur la même plage horaire.
-
-        Args:
-            autre (Intervention): l'autre intervention à comparer
-
-        Returns:
-            bool: True si conflit, False sinon
         """
         if not self.date_debut or not self.date_fin or not autre.date_debut or not autre.date_fin:
-            return False  # Pas de conflit si les dates ne sont pas définies
+            return False
 
-        # Chevauchement des plages horaires
         chevauchement = self.date_debut < autre.date_fin and autre.date_debut < self.date_fin
         if not chevauchement:
             return False
 
-        # Conflit si même technicien ou même bien
         if self.technicien and autre.technicien and self.technicien.id == autre.technicien.id:
             return True
         if self.bien_id == autre.bien_id:

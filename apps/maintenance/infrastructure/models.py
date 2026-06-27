@@ -75,3 +75,24 @@ class InterventionPieceModel(models.Model):
     class Meta:
         db_table = 'maintenance_intervention_piece'
         unique_together = ('intervention', 'piece')
+
+
+class RegleMaintenanceModel(models.Model):
+    TYPE_CHOICES = [
+        ('forfait', 'Forfait'),
+        ('remise', 'Remise'),
+        ('majoration', 'Majoration'),
+    ]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    agence_id = models.UUIDField(db_index=True)  # référence à l'agence
+    type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    valeur = models.DecimalField(max_digits=10, decimal_places=2)
+    duree_min = models.PositiveIntegerField(default=0)  # heures
+    duree_max = models.PositiveIntegerField(null=True, blank=True)  # heures
+    periode_debut = models.DateField(null=True, blank=True)
+    periode_fin = models.DateField(null=True, blank=True)
+    description = models.TextField(blank=True)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'maintenance_regle_tarification'
