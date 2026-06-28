@@ -11,5 +11,6 @@ urlpatterns = [
     path('api-token-auth/', token_views.obtain_auth_token),  # endpoint pour obtenir token
     path('api/auth/', include('authentication.urls')),
     path('api/location/', include('location.presentation.urls')),
+    path('api/statistiques/', include('statistiques.presentation.urls'))
     
 ]

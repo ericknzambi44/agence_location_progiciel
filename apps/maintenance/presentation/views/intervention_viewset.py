@@ -129,9 +129,15 @@ class InterventionViewSet(viewsets.ViewSet):
     # --- CALCULER COÛT (sans terminer) ---
     @action(detail=True, methods=['get'], url_path='cout', url_name='cout')
     def calculer_cout(self, request, pk=None):
+        """
+        GET /interventions/{id}/cout/
+        Retourne le coût estimé de l'intervention sans la terminer.
+        Ce calcul n'applique pas les règles de tarification (remises, majorations, forfaits),
+        car celles-ci sont appliquées uniquement lors de la terminaison.
+        """
         uc = CalculerCoutInterventionUseCase(self.intervention_repo)
         try:
-            cout = uc.execute(UUID(pk))   # retourne un objet Cout
+            cout = uc.execute(UUID(pk))
             return Response({"cout_total": float(cout.valeur)})
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

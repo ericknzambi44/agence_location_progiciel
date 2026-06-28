@@ -4,7 +4,8 @@ from maintenance.infrastructure.models import (
     TechnicienModel,
     PieceDetacheeModel,
     InterventionModel,
-    InterventionPieceModel
+    InterventionPieceModel,
+    RegleMaintenanceModel,  # <-- ajout
 )
 
 @admin.register(TechnicienModel)
@@ -27,3 +28,9 @@ class InterventionModelAdmin(admin.ModelAdmin):
 class InterventionPieceModelAdmin(admin.ModelAdmin):
     list_display = ('intervention', 'piece', 'quantite')
     list_filter = ('intervention__statut',)
+
+@admin.register(RegleMaintenanceModel)  # <-- ajout
+class RegleMaintenanceModelAdmin(admin.ModelAdmin):
+    list_display = ('id', 'agence_id', 'type', 'valeur', 'duree_min', 'duree_max', 'active')
+    list_filter = ('type', 'active')
+    search_fields = ('description',)
