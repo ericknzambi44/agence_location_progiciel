@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/location_db
+      - SECRET_KEY=testkey
+      - ALLOWED_HOSTS=localhost,127.0.0.1
+      - DEBUG=False
+      - EMAIL_HOST=smtp.gmail.com
+      - EMAIL_PORT=465
+      - EMAIL_HOST_USER=nokigence@gmail.com
+      - EMAIL_HOST_PASSWORD=udgezacjzrhhtixb
+      - EMAIL_USE_SSL=True
+      - DEFAULT_FROM_EMAIL=nokigence@gmail.com
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=location_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
