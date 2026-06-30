@@ -1,6 +1,7 @@
 from .base import *
 from decouple import config
 import dj_database_url
+import sys
 
 DEBUG = False
 
@@ -18,12 +19,13 @@ if DATABASE_URL:
     }
 else:
     # Fallback sur les variables classiques (pour le développement local)
+    # Fournir des valeurs par défaut pour éviter l'erreur "not found"
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME'),
-            'USER': config('DB_USER'),
-            'PASSWORD': config('DB_PASSWORD'),
+            'NAME': config('DB_NAME', default='location_db'),
+            'USER': config('DB_USER', default='postgres'),
+            'PASSWORD': config('DB_PASSWORD', default=''),
             'HOST': config('DB_HOST', default='localhost'),
             'PORT': config('DB_PORT', default='5432'),
             'CONN_MAX_AGE': 60,
