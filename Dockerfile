@@ -33,4 +33,4 @@ EXPOSE 8000
 ENTRYPOINT ["/entrypoint.sh"]
 
 # Commande Gunicorn optimisée (workers=2, threads=2, timeout=120)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers=2", "--threads=2", "--timeout=120", "config.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers=2", "--threads=2", "--timeout=300", "config.wsgi:application"]
