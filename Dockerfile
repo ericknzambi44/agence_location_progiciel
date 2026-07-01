@@ -23,9 +23,14 @@ COPY . .
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Créer un dossier pour les logs (optionnel)
+RUN mkdir -p /app/logs
+
 # Exposer le port 8000
 EXPOSE 8000
 
 # Utiliser le script d'entrée
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "config.wsgi:application"]
+
+# Commande Gunicorn optimisée (workers=2, threads=2, timeout=120)
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers=2", "--threads=2", "--timeout=120", "config.wsgi:application"]
