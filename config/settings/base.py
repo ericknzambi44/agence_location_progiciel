@@ -8,23 +8,27 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # Ajoute le dossier 'apps' au PYTHONPATH pour que Django trouve les modules
 sys.path.insert(0, str(BASE_DIR / 'apps'))
 
-# --- Lecture des variables sensibles depuis .env ---
+# ============================================================
+# 1. VARIABLES D'ENVIRONNEMENT (lues depuis .env)
+# ============================================================
 SECRET_KEY = config('DJANGO_SECRET_KEY', default='django-insecure-votre-cle-ici-pour-dev')
 DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
-# --- Configuration CORS (Cross-Origin Resource Sharing) ---
-# Origines autorisées à accéder à l'API (ex: frontend React)
-# Exemple dans .env : CORS_ALLOWED_ORIGINS=http://localhost:1420,http://127.0.0.1:1420
+# ============================================================
+# 2. CORS (Cross-Origin Resource Sharing)
+# ============================================================
+# Liste des origines autorisées (ex: http://localhost:1420, https://frontend.onrender.com)
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='').split(',')
-# Autoriser l'envoi de cookies / credentials dans les requêtes cross-origin
+# Autoriser l'envoi de cookies / credentials
 CORS_ALLOW_CREDENTIALS = config('CORS_ALLOW_CREDENTIALS', default=False, cast=bool)
 
-# IMPORTANT : Ne jamais mettre CORS_ALLOW_ALL_ORIGINS=True en production.
-# Pour le développement uniquement, vous pouvez décommenter la ligne suivante :
+# ⚠️ En production, ne jamais activer CORS_ALLOW_ALL_ORIGINS
 # CORS_ALLOW_ALL_ORIGINS = True if DEBUG else False
 
-# --- Application definition ---
+# ============================================================
+# 3. APPLICATIONS INSTALLÉES
+# ============================================================
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -48,31 +52,17 @@ INSTALLED_APPS = [
     'statistiques',
 ]
 
-# --- Middleware (ordre crucial) ---
+# ============================================================
+# 4. MIDDLEWARE (ordre crucial)
+# ============================================================
 MIDDLEWARE = [
-    # CorsMiddleware doit être placé aussi haut que possible,
-    # avant les middlewares qui peuvent générer des réponses (ex: CommonMiddleware)
-    'corsheaders.middleware.CorsMiddleware',
-
-    # Gère les en-têtes de sécurité (HSTS, XSS, etc.)
+    'corsheaders.middleware.CorsMiddleware',  # ⚠️ DOIT être en premier
     'django.middleware.security.SecurityMiddleware',
-
-    # Gère les sessions utilisateur (nécessaire pour l'admin et l'authentification)
     'django.contrib.sessions.middleware.SessionMiddleware',
-
-    # Middleware commun (gestion des URL, etc.)
     'django.middleware.common.CommonMiddleware',
-
-    # Protection CSRF (Cross-Site Request Forgery)
     'django.middleware.csrf.CsrfViewMiddleware',
-
-    # Associe l'utilisateur aux requêtes (nécessaire après SessionMiddleware)
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-
-    # Gère les messages flash (utilisés dans l'admin)
     'django.contrib.messages.middleware.MessageMiddleware',
-
-    # Protection contre le clickjacking (X-Frame-Options)
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -96,7 +86,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# --- Base de données (SQLite par défaut, surchargeable) ---
+# ============================================================
+# 5. BASE DE DONNÉES (SQLite par défaut, surchargé en production)
+# ============================================================
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -104,7 +96,9 @@ DATABASES = {
     }
 }
 
-# --- Validation des mots de passe ---
+# ============================================================
+# 6. VALIDATION DES MOTS DE PASSE
+# ============================================================
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -112,19 +106,24 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# --- Internationalisation ---
+# ============================================================
+# 7. INTERNATIONALISATION
+# ============================================================
 LANGUAGE_CODE = 'fr-fr'
 TIME_ZONE = 'Europe/Paris'
 USE_I18N = True
 USE_TZ = True
 
-# --- Fichiers statiques ---
+# ============================================================
+# 8. FICHIERS STATIQUES
+# ============================================================
 STATIC_URL = 'static/'
 
-# --- Clé primaire par défaut ---
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# --- Configuration Django REST Framework ---
+# ============================================================
+# 9. DJANGO REST FRAMEWORK
+# ============================================================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
