@@ -5,6 +5,7 @@ Définissent les tables : techniciens, pièces détachées, interventions et leu
 from django.db import models
 import uuid
 
+
 class TechnicienModel(models.Model):
     """
     Représente un technicien de maintenance.
@@ -15,6 +16,9 @@ class TechnicienModel(models.Model):
     prenom = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
     cout_horaire = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+
+    # Association à une agence pour le filtrage multi-agences
+    agence_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = 'maintenance_technicien'
@@ -29,6 +33,9 @@ class PieceDetacheeModel(models.Model):
     nom = models.CharField(max_length=200)
     prix_unitaire = models.DecimalField(max_digits=12, decimal_places=2)
     stock = models.PositiveIntegerField(default=0)
+
+    # Association à une agence pour le filtrage multi-agences
+    agence_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = 'maintenance_piece'
@@ -55,6 +62,9 @@ class InterventionModel(models.Model):
     cout_main_oeuvre = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     cout_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
+    # Association à une agence pour le filtrage multi-agences
+    agence_id = models.UUIDField(null=True, blank=True, db_index=True)
+
     class Meta:
         db_table = 'maintenance_intervention'
 
@@ -78,6 +88,10 @@ class InterventionPieceModel(models.Model):
 
 
 class RegleMaintenanceModel(models.Model):
+    """
+    Règle de tarification pour la maintenance (forfait, remise, majoration).
+    Liée à une agence.
+    """
     TYPE_CHOICES = [
         ('forfait', 'Forfait'),
         ('remise', 'Remise'),

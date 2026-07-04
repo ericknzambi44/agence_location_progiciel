@@ -2,6 +2,7 @@
 Entité représentant un bien (article) à louer.
 Contient la logique métier de base (changement d'état, validation).
 La disponibilité pour la location est vérifiée par le module Location via les contrats.
+Le champ agence_id permet de lier le bien à une agence pour le filtrage multi-agences.
 """
 from dataclasses import dataclass, field
 from datetime import date
@@ -39,18 +40,20 @@ class Bien:
     Attributes:
         reference (str): Référence unique du bien.
         nom (str): Nom du bien.
-        description (Optional[str]): Description du bien.
         prix_unitaire_ht (PrixHT): Prix hors taxes par jour.
+        description (Optional[str]): Description du bien.
         date_achat (Optional[date]): Date d'achat du bien.
         etat (EtatBien): État actuel du bien.
+        agence_id (Optional[UUID]): Identifiant de l'agence propriétaire.
         id (UUID): Identifiant unique (généré automatiquement).
     """
     reference: str
     nom: str
-    prix_unitaire_ht: PrixHT          # Utilisation du Value Object
+    prix_unitaire_ht: PrixHT
     description: Optional[str] = None
     date_achat: Optional[date] = None
     etat: EtatBien = EtatBien.DISPONIBLE
+    agence_id: Optional[UUID] = None  # Champ pour le multi-agences
     id: UUID = field(default_factory=uuid4)
 
     def __post_init__(self) -> None:

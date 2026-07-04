@@ -1,7 +1,6 @@
 from location.domain.entities.contrat import Contrat
 from location.domain.value_objects.montant import Montant
 from location.infrastructure.models import ContratModel
-from decimal import Decimal
 
 
 class ContratMapper:
@@ -14,7 +13,8 @@ class ContratMapper:
             date_debut=model.date_debut,
             date_fin=model.date_fin,
             montant_total=Montant(model.montant_total),
-            statut=model.statut
+            statut=model.statut,
+            agence_id=model.agence_id
         )
 
     @staticmethod
@@ -26,5 +26,6 @@ class ContratMapper:
             date_debut=entity.date_debut,
             date_fin=entity.date_fin,
             montant_total=entity.montant_total.valeur,
-            statut=entity.statut
+            statut=entity.statut,
+            agence_id=entity.agence_id
         )

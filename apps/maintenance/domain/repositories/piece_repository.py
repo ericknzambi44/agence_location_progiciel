@@ -1,6 +1,6 @@
 """
 Repository abstrait pour les pièces détachées.
-Définit le contrat que doivent respecter les implémentations concrètes.
+Toutes les méthodes de lecture acceptent un paramètre `agence_id` pour le filtrage multi-agences.
 """
 from abc import ABC, abstractmethod
 from typing import Optional, List
@@ -9,34 +9,26 @@ from maintenance.domain.entities.piece_detachee import PieceDetachee
 
 
 class PieceDetacheeRepository(ABC):
-    """Interface pour la persistance des pièces détachées."""
-
     @abstractmethod
-    def get(self, id: UUID) -> Optional[PieceDetachee]:
-        """Récupère une pièce par son identifiant UUID."""
+    def get(self, id: UUID, agence_id: UUID = None) -> Optional[PieceDetachee]:
         pass
 
     @abstractmethod
     def add(self, piece: PieceDetachee) -> None:
-        """Ajoute une nouvelle pièce en base."""
         pass
 
     @abstractmethod
     def update(self, piece: PieceDetachee) -> None:
-        """Met à jour une pièce existante."""
         pass
 
     @abstractmethod
     def remove(self, piece: PieceDetachee) -> None:
-        """Supprime une pièce de la base."""
         pass
 
     @abstractmethod
-    def find_by_reference(self, reference: str) -> Optional[PieceDetachee]:
-        """Recherche une pièce par sa référence unique."""
+    def find_by_reference(self, reference: str, agence_id: UUID = None) -> Optional[PieceDetachee]:
         pass
 
     @abstractmethod
-    def find_all(self) -> List[PieceDetachee]:
-        """Retourne toutes les pièces détachées."""
+    def find_all(self, agence_id: UUID = None) -> List[PieceDetachee]:
         pass

@@ -17,11 +17,13 @@ class TarificationService:
     def __init__(self, repo: RegleTarificationRepository):
         self.repo = repo
 
-    def get_regles(self, agence_id: UUID) -> ReglesTarification:
+    def get_regles(self, agence_id: UUID = None) -> ReglesTarification:
         """
         Récupère les règles de tarification pour une agence donnée.
         Retourne un agrégat vide si aucune règle n'est définie.
         """
+        if agence_id is None:
+            return ReglesTarification(agence_id=None, regles=[])
         regles = self.repo.get(agence_id)
         if regles is None:
             regles = ReglesTarification(agence_id=agence_id, regles=[])

@@ -8,6 +8,9 @@ class CategorieModel(models.Model):
     description = models.TextField(blank=True, null=True)
     parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True)
 
+    # Optionnel : si vous voulez filtrer les catégories par agence
+    agence_id = models.UUIDField(null=True, blank=True, db_index=True)
+
     class Meta:
         db_table = 'stock_categorie'
 
@@ -24,10 +27,13 @@ class BienModel(models.Model):
     nom = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     prix_unitaire_ht = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    devise = models.CharField(max_length=3, default='USD')  
+    devise = models.CharField(max_length=3, default='USD')
     date_achat = models.DateField(null=True, blank=True)
     etat = models.CharField(max_length=20, choices=ETAT_CHOICES, default='disponible')
     categorie = models.ForeignKey(CategorieModel, on_delete=models.SET_NULL, null=True, blank=True)
+
+    # Champ pour lier le bien à une agence (nécessaire pour le multi-agences)
+    agence_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = 'stock_bien'

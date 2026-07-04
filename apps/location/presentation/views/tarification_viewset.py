@@ -1,19 +1,19 @@
 """
 ViewSet pour la gestion des règles de tarification.
-Expose les endpoints GET et POST /api/location/tarification/.
+Toutes les opérations sont filtrées par agence via AgenceMixin.
 """
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
 from uuid import UUID
 
+from config.mixins import AgenceMixin
+
 from location.application.services.tarification_service import TarificationService
-from location.application.use_cases.configurer_tarification import ConfigurerTarificationUseCase
-from location.application.use_cases.consulter_regles import ConsulterReglesUseCase
 from location.infrastructure.repositories.django_regle_tarification_repository import (
     DjangoRegleTarificationRepository
 )
-from administration.infrastructure.repositories.django_agence_repository import DjangoAgenceRepository
 from location.presentation.serializers.tarification_serializers import (
     RegleTarificationInputSerializer,
     RegleTarificationOutputSerializer
@@ -22,11 +22,11 @@ from location.domain.value_objects.regle_tarification import RegleTarification, 
 from location.domain.entities.regle_tarification import ReglesTarification
 
 
-class TarificationViewSet(viewsets.ViewSet):
+class TarificationViewSet(AgenceMixin, viewsets.ViewSet):
     """
-    ViewSet pour la tarification dynamique.
-    - GET /tarification/  → liste les règles actuelles
-    - POST /tarification/ → enregistre de nouvelles règles
+    ViewSet pour la tarification dynamique des locations.
+    - GET /tarification/  → liste les règles actuelles (filtrées par agence)
+    - POST /tarification/ → enregistre de nouvelles règles (pour l'agence)
     """
     permission_classes = [IsAuthenticated]
 
@@ -37,36 +37,38 @@ class TarificationViewSet(viewsets.ViewSet):
 
     def list(self, request):
         """
-        Récupère les règles de tarification pour l'agence par défaut.
+        Récupère les règles de tarification pour l'agence de l'utilisateur.
         """
-        agence_repo = DjangoAgenceRepository()
-        agences = agence_repo.list_actives()
-        if not agences:
-            return Response({"error": "Aucune agence active trouvée."}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            agence_id = self.get_agence_id()
+        except PermissionDenied as e:
+            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
 
-        agence_id = agences[0].id
-        regles = self.service.get_regles(agence_id)
+        regles = self.service.get_regles(agence_id=agence_id)
         serializer = RegleTarificationOutputSerializer(regles.regles, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request):
         """
-        Enregistre les règles de tarification pour l'agence par défaut.
+        Enregistre les règles de tarification pour l'agence de l'utilisateur.
         Remplace les règles existantes par les nouvelles.
         """
-        agence_repo = DjangoAgenceRepository()
-        agences = agence_repo.list_actives()
-        if not agences:
-            return Response({"error": "Aucune agence active trouvée."}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            agence_id = self.get_agence_id()
+        except PermissionDenied as e:
+            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
 
-        agence_id = agences[0].id
-
-        # Validation des données d'entrée
+        # Validation des données d'entrée avec affichage des erreurs détaillées
         serializer = RegleTarificationInputSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return Response(
+                {"error": "Données invalides", "details": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         regles_data = serializer.validated_data['regles']
 
-        # Construction des objets du domaine 
+        # Construction des objets du domaine
         regles_obj = []
         for r in regles_data:
             regle = RegleTarification(
@@ -74,8 +76,8 @@ class TarificationViewSet(viewsets.ViewSet):
                 valeur=r['valeur'],
                 duree_min=r['duree_min'],
                 duree_max=r.get('duree_max'),
-                bien_id=r.get('bien_id'),         
-                categorie_id=r.get('categorie_id'),  
+                bien_id=r.get('bien_id'),
+                categorie_id=r.get('categorie_id'),
                 periode_debut=r.get('periode_debut'),
                 periode_fin=r.get('periode_fin'),
                 description=r.get('description', ''),
@@ -83,14 +85,11 @@ class TarificationViewSet(viewsets.ViewSet):
             )
             regles_obj.append(regle)
 
-        # Créer l'agrégat
+        # Créer l'agrégat et sauvegarder
         regles_aggregat = ReglesTarification(agence_id=agence_id, regles=regles_obj)
-
-        # Exécuter le use case
-        uc = ConfigurerTarificationUseCase(self.repo)
-        uc.execute(agence_id, regles_aggregat)
+        self.service.sauvegarder_regles(regles_aggregat)
 
         # Retourner la liste mise à jour
-        regles = self.service.get_regles(agence_id)
+        regles = self.service.get_regles(agence_id=agence_id)
         output = RegleTarificationOutputSerializer(regles.regles, many=True)
         return Response(output.data, status=status.HTTP_200_OK)

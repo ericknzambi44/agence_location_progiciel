@@ -1,11 +1,16 @@
+"""
+Repository abstrait pour les techniciens.
+Toutes les méthodes de lecture acceptent un paramètre `agence_id` pour le filtrage multi-agences.
+"""
 from abc import ABC, abstractmethod
 from typing import Optional, List
 from uuid import UUID
 from maintenance.domain.entities.technicien import Technicien
 
+
 class TechnicienRepository(ABC):
     @abstractmethod
-    def get(self, id: UUID) -> Optional[Technicien]:
+    def get(self, id: UUID, agence_id: UUID = None) -> Optional[Technicien]:
         pass
 
     @abstractmethod
@@ -14,7 +19,6 @@ class TechnicienRepository(ABC):
 
     @abstractmethod
     def update(self, technicien: Technicien) -> None:
-        """Met à jour un technicien existant."""
         pass
 
     @abstractmethod
@@ -22,5 +26,5 @@ class TechnicienRepository(ABC):
         pass
 
     @abstractmethod
-    def get_all(self) -> List[Technicien]:
+    def get_all(self, agence_id: UUID = None) -> List[Technicien]:
         pass

@@ -19,11 +19,13 @@ class TarificationMaintenanceService:
     def __init__(self, repo: RegleMaintenanceRepository):
         self.repo = repo
 
-    def get_regles(self, agence_id: UUID) -> ReglesMaintenance:
+    def get_regles(self, agence_id: UUID = None) -> ReglesMaintenance:
         """
         Récupère les règles de tarification pour une agence donnée.
         Retourne un agrégat vide si aucune règle n'est définie.
         """
+        if agence_id is None:
+            return ReglesMaintenance(agence_id=None, regles=[])  # ou lever une erreur
         regles = self.repo.get(agence_id)
         if regles is None:
             regles = ReglesMaintenance(agence_id=agence_id, regles=[])

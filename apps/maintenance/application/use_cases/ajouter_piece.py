@@ -1,7 +1,7 @@
 """
 Use case : Ajouter une pièce détachée à une intervention.
 Vérifie l'existence de l'intervention et de la pièce,
-puis appelle la méthode métier de l'entité Intervention.
+et que les deux appartiennent à la même agence.
 """
 from uuid import UUID
 from maintenance.domain.repositories.intervention_repository import InterventionRepository
@@ -9,15 +9,14 @@ from maintenance.domain.repositories.piece_repository import PieceDetacheeReposi
 
 
 class AjouterPieceUseCase:
-    def __init__(
-        self,
-        intervention_repo: InterventionRepository,
-        piece_repo: PieceDetacheeRepository
-    ):
+    def __init__(self,
+                 intervention_repo: InterventionRepository,
+                 piece_repo: PieceDetacheeRepository):
         self.intervention_repo = intervention_repo
         self.piece_repo = piece_repo
 
-    def execute(self, intervention_id: UUID, piece_id: UUID, quantite: int) -> None:
+    def execute(self, intervention_id: UUID, piece_id: UUID,
+                quantite: int, agence_id: UUID = None) -> None:
         """
         Exécute l'ajout d'une pièce à une intervention.
 
@@ -25,20 +24,25 @@ class AjouterPieceUseCase:
             intervention_id: UUID de l'intervention cible
             piece_id: UUID de la pièce à ajouter
             quantite: quantité (positive)
+            agence_id: UUID de l'agence (pour vérification)
 
         Raises:
             ValueError: si l'intervention ou la pièce n'existent pas,
+                        si elles n'appartiennent pas à l'agence,
                         ou si l'opération est interdite (métier).
         """
-        # Récupérer l'intervention
-        intervention = self.intervention_repo.get(intervention_id)
-        if not intervention:
-            raise ValueError("Intervention introuvable")
+        if agence_id is None:
+            raise ValueError("agence_id est requis pour ajouter une pièce.")
 
-        # Récupérer la pièce
-        piece = self.piece_repo.get(piece_id)
+        # Récupérer l'intervention (avec vérification d'agence)
+        intervention = self.intervention_repo.get(intervention_id, agence_id=agence_id)
+        if not intervention:
+            raise ValueError("Intervention introuvable ou non autorisée")
+
+        # Récupérer la pièce (avec vérification d'agence)
+        piece = self.piece_repo.get(piece_id, agence_id=agence_id)
         if not piece:
-            raise ValueError("Pièce détachée introuvable")
+            raise ValueError("Pièce détachée introuvable ou non autorisée")
 
         # Délégation à la logique métier de l'entité
         intervention.ajouter_piece(piece, quantite)

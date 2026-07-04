@@ -4,6 +4,9 @@ from location.domain.value_objects.regle_tarification import TypeRegle
 
 
 class ClientModel(models.Model):
+    """
+    Client d'une agence de location.
+    """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nom = models.CharField(max_length=100)
     prenom = models.CharField(max_length=100)
@@ -12,11 +15,17 @@ class ClientModel(models.Model):
     adresse = models.TextField()
     est_actif = models.BooleanField(default=True)
 
+    # Lien vers l'agence propriétaire (multi-agences)
+    agence_id = models.UUIDField(null=True, blank=True, db_index=True)
+
     class Meta:
         db_table = 'location_client'
 
 
 class ContratModel(models.Model):
+    """
+    Contrat de location liant un client, un bien et une période.
+    """
     STATUT_CHOICES = [
         ('actif', 'Actif'),
         ('termine', 'Terminé'),
@@ -30,17 +39,21 @@ class ContratModel(models.Model):
     montant_total = models.DecimalField(max_digits=12, decimal_places=2)
     statut = models.CharField(max_length=10, choices=STATUT_CHOICES, default='actif')
 
+    # Lien vers l'agence propriétaire (multi-agences)
+    agence_id = models.UUIDField(null=True, blank=True, db_index=True)
+
     class Meta:
         db_table = 'location_contrat'
 
 
 class RegleTarificationModel(models.Model):
     """
-    Modèle Django pour les règles de tarification.
+    Règle de tarification pour les locations.
     Supporte le ciblage par bien, par catégorie, ou global.
+    Liée à une agence.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    agence_id = models.UUIDField(db_index=True)
+    agence_id = models.UUIDField(db_index=True)  # déjà présent
     type = models.CharField(max_length=10, choices=[(t.value, t.value) for t in TypeRegle])
     valeur = models.DecimalField(max_digits=10, decimal_places=2)
     duree_min = models.PositiveIntegerField()
@@ -57,7 +70,6 @@ class RegleTarificationModel(models.Model):
 
     class Meta:
         db_table = 'location_regle_tarification'
-        # Contrainte pour garantir qu'une règle ne cible pas à la fois un bien et une catégorie
         constraints = [
             models.CheckConstraint(
                 check=(

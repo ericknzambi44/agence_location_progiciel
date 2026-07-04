@@ -1,6 +1,7 @@
 """
 Serializers pour la gestion des règles de tarification.
 Supportent les nouveaux champs bien_id et categorie_id.
+Gèrent la conversion des chaînes vides en None pour les champs optionnels.
 """
 from rest_framework import serializers
 from location.domain.value_objects.regle_tarification import TypeRegle
@@ -28,21 +29,31 @@ class TypeRegleField(serializers.Field):
 class RegleTarificationSerializer(serializers.Serializer):
     """
     Serializer pour une règle de tarification individuelle.
-    Remplace type_bien_id par bien_id et ajoute categorie_id.
     """
     type = TypeRegleField()
     valeur = serializers.DecimalField(max_digits=10, decimal_places=2)
     duree_min = serializers.IntegerField(min_value=0)
     duree_max = serializers.IntegerField(required=False, allow_null=True)
-
-    #ciblage par bien ou par catégorie
     bien_id = serializers.UUIDField(required=False, allow_null=True)
     categorie_id = serializers.UUIDField(required=False, allow_null=True)
-
     periode_debut = serializers.DateField(required=False, allow_null=True)
     periode_fin = serializers.DateField(required=False, allow_null=True)
     description = serializers.CharField(required=False, allow_blank=True)
     active = serializers.BooleanField(default=True)
+
+    def to_internal_value(self, data):
+        """
+        Convertit les chaînes vides en None pour les champs UUID, Integer et Date.
+        """
+        # Copie pour ne pas modifier l'original
+        data = data.copy() if isinstance(data, dict) else data
+
+        # Conversion des chaînes vides en None pour les champs optionnels
+        for field in ['bien_id', 'categorie_id', 'duree_max', 'periode_debut', 'periode_fin']:
+            if field in data and data[field] == '':
+                data[field] = None
+
+        return super().to_internal_value(data)
 
     def validate(self, data):
         """
@@ -68,6 +79,5 @@ class RegleTarificationInputSerializer(serializers.Serializer):
 class RegleTarificationOutputSerializer(RegleTarificationSerializer):
     """
     Serializer pour la réponse GET /tarification/.
-    Hérite de RegleTarificationSerializer.
     """
     pass

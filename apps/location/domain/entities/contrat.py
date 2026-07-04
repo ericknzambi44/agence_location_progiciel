@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import date
 from uuid import UUID, uuid4
-from decimal import Decimal
+from typing import Optional
 from location.domain.value_objects.montant import Montant
 
 
@@ -12,7 +12,8 @@ class Contrat:
     date_debut: date
     date_fin: date
     montant_total: Montant
-    statut: str = "actif"  # actif, termine, annule
+    statut: str = "actif"
+    agence_id: Optional[UUID] = None 
     id: UUID = field(default_factory=uuid4)
 
     def __post_init__(self):

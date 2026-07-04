@@ -15,10 +15,12 @@ class EmployeMapper:
             prenom=PersonName(model.prenom),
             email=Email(model.email),
             date_embauche=model.date_embauche,
-            taux_horaire=TauxHoraire(Decimal(str(model.taux_horaire))),  # conversion correcte
+            taux_horaire=TauxHoraire(Decimal(str(model.taux_horaire))), 
             poste=model.poste,
             est_actif=model.est_actif,
-            role_id=model.role_id
+            role_id=model.role_id,
+            agence_id=model.agence_id
+
         )
 
     @staticmethod
@@ -33,5 +35,6 @@ class EmployeMapper:
             taux_horaire=entity.taux_horaire.valeur,
             poste=entity.poste,
             est_actif=entity.est_actif,
-            role_id=entity.role_id
+            role_id=entity.role_id,
+            agence_id=entity.agence_id
         )

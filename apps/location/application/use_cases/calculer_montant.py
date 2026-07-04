@@ -2,6 +2,7 @@
 Use case pour calculer le montant estimé d'une location.
 Utilise le service de tarification pour appliquer les règles (remises, forfaits, majorations)
 en fonction du bien, de sa catégorie, de la durée et de la période.
+Le bien doit appartenir à l'agence spécifiée.
 """
 from datetime import date
 from uuid import UUID
@@ -27,7 +28,7 @@ class CalculerMontantLocationUseCase:
 
         Args:
             bien_id: UUID du bien
-            agence_id: UUID de l'agence (pour les règles)
+            agence_id: UUID de l'agence (pour les règles et le filtrage)
             date_debut: date de début de la location
             date_fin: date de fin de la location
 
@@ -35,12 +36,15 @@ class CalculerMontantLocationUseCase:
             Montant: montant total estimé
 
         Raises:
-            ValueError: si bien introuvable, dates invalides ou durée nulle.
+            ValueError: si bien introuvable, dates invalides, durée nulle, ou agence non spécifiée.
         """
-        # Récupération du bien
-        bien = self.bien_repo.get(bien_id)
+        if agence_id is None:
+            raise ValueError("agence_id est requis pour calculer le montant.")
+
+        # Récupération du bien avec filtrage par agence
+        bien = self.bien_repo.get(bien_id, agence_id=agence_id)
         if not bien:
-            raise ValueError("Bien introuvable")
+            raise ValueError("Bien introuvable ou non autorisé")
 
         # Validation des dates
         if date_debut >= date_fin:

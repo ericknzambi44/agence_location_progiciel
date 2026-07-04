@@ -1,5 +1,6 @@
 """
 ViewSet pour la gestion des biens (Stock).
+Expose les endpoints CRUD, vérification de disponibilité et changement d'état.
 Toutes les opérations sont filtrées par agence via AgenceMixin.
 """
 from rest_framework import viewsets, status

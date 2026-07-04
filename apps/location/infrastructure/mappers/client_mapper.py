@@ -15,6 +15,7 @@ class ClientMapper:
             email=Email(model.email),
             telephone=Telephone(model.telephone),
             adresse=model.adresse,
+            agence_id=model.agence_id,
             est_actif=model.est_actif
         )
 
@@ -27,5 +28,6 @@ class ClientMapper:
             email=entity.email.value,
             telephone=entity.telephone.value,
             adresse=entity.adresse,
+            agence_id=entity.agence_id,
             est_actif=entity.est_actif
         )

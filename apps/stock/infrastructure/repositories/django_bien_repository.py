@@ -1,10 +1,8 @@
 """
 Repository Django pour les biens.
-Gère la persistance des entités Bien avec conversion via le mapper.
-La vérification de disponibilité intègre les contrats de location actifs.
+Toutes les méthodes de lecture filtrent par agence.
 """
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Q
 from typing import Optional, List
 from uuid import UUID
 from datetime import date
@@ -13,55 +11,49 @@ from stock.domain.repositories.bien_repository import BienRepository
 from stock.domain.entities.bien import Bien, EtatBien
 from stock.infrastructure.models import BienModel
 from stock.infrastructure.mappers.bien_mapper import BienMapper
-from stock.domain.value_objects.prix import PrixHT
-
-# Import du modèle de contrat pour vérifier la disponibilité
 from location.infrastructure.models import ContratModel
 
 
 class DjangoBienRepository(BienRepository):
-    """
-    Implémentation du repository des biens avec Django ORM.
-    """
-
-    def get(self, id: UUID) -> Optional[Bien]:
+    def get(self, id: UUID, agence_id: UUID = None) -> Optional[Bien]:
         try:
-            model = BienModel.objects.get(id=id)
+            qs = BienModel.objects.filter(id=id)
+            if agence_id is not None:
+                qs = qs.filter(agence_id=agence_id)
+            model = qs.get()
             return BienMapper.to_domain(model)
         except BienModel.DoesNotExist:
             return None
 
-    def get_by_reference(self, reference: str) -> Optional[Bien]:
+    def get_by_reference(self, reference: str, agence_id: UUID = None) -> Optional[Bien]:
         try:
-            model = BienModel.objects.get(reference=reference)
+            qs = BienModel.objects.filter(reference=reference)
+            if agence_id is not None:
+                qs = qs.filter(agence_id=agence_id)
+            model = qs.get()
             return BienMapper.to_domain(model)
         except ObjectDoesNotExist:
             return None
 
     def add(self, bien: Bien) -> None:
-        """
-        Ajoute ou met à jour un bien.
-        Utilise update_or_create pour éviter les doublons.
-        """
+        if bien.agence_id is None:
+            raise ValueError("agence_id est requis pour sauvegarder un bien.")
         model_data = {
             'id': bien.id,
             'reference': bien.reference,
             'nom': bien.nom,
             'description': bien.description,
-            # Extraction du montant et de la devise depuis le Value Object PrixHT
             'prix_unitaire_ht': bien.prix_unitaire_ht.amount,
             'devise': bien.prix_unitaire_ht.currency,
             'date_achat': bien.date_achat,
             'etat': bien.etat.value,
+            'agence_id': bien.agence_id
         }
         obj, created = BienModel.objects.update_or_create(id=bien.id, defaults=model_data)
         if created:
             bien.id = obj.id
 
     def update(self, bien: Bien) -> None:
-        """
-        Met à jour un bien existant.
-        """
         model_data = {
             'reference': bien.reference,
             'nom': bien.nom,
@@ -76,37 +68,36 @@ class DjangoBienRepository(BienRepository):
     def remove(self, bien: Bien) -> None:
         BienModel.objects.filter(id=bien.id).delete()
 
-    def find_by_etat(self, etat: EtatBien) -> List[Bien]:
-        models = BienModel.objects.filter(etat=etat.value)
-        return [BienMapper.to_domain(m) for m in models]
+    def find_by_etat(self, etat: EtatBien, agence_id: UUID = None) -> List[Bien]:
+        qs = BienModel.objects.filter(etat=etat.value)
+        if agence_id is not None:
+            qs = qs.filter(agence_id=agence_id)
+        return [BienMapper.to_domain(m) for m in qs]
 
-    def find_disponibles_periode(self, debut: date, fin: date) -> List[Bien]:
-        """
-        Retourne les biens disponibles sur une période donnée.
-        Un bien est indisponible si :
-        - Il est en maintenance (etat='en_maintenance')
-        - Il a un contrat de location actif qui chevauche la période
-        """
-        # 1. Récupérer les IDs des biens ayant un contrat actif sur la période
+    def find_disponibles_periode(self, debut: date, fin: date, agence_id: UUID = None) -> List[Bien]:
+        qs = BienModel.objects.all()
+        if agence_id is not None:
+            qs = qs.filter(agence_id=agence_id)
+
+        # Contrats actifs sur la période
         contrats_actifs = ContratModel.objects.filter(
             statut='actif',
             date_debut__lt=fin,
             date_fin__gt=debut
-        ).values_list('bien_id', flat=True).distinct()
-
-        # 2. Biens indisponibles (maintenance + contrats actifs)
-        indisponibles_ids = set(contrats_actifs)
-        indisponibles_ids.update(
-            BienModel.objects.filter(etat='en_maintenance').values_list('id', flat=True)
         )
+        if agence_id is not None:
+            contrats_actifs = contrats_actifs.filter(agence_id=agence_id)
+        contrats_ids = contrats_actifs.values_list('bien_id', flat=True).distinct()
 
-        # 3. Biens disponibles (état disponible et pas dans la liste des indisponibles)
-        disponibles = BienModel.objects.filter(
-            etat='disponible'
-        ).exclude(id__in=indisponibles_ids)
+        # Indisponibles : maintenance + contrats actifs
+        indisponibles_ids = set(contrats_ids)
+        indisponibles_ids.update(qs.filter(etat='en_maintenance').values_list('id', flat=True))
 
+        disponibles = qs.filter(etat='disponible').exclude(id__in=indisponibles_ids)
         return [BienMapper.to_domain(m) for m in disponibles]
 
-    def find_all(self) -> List[Bien]:
-        models = BienModel.objects.all()
+    def find_all(self, agence_id: UUID = None) -> List[Bien]:
+        if agence_id is None:
+            return []  # Sécurité
+        models = BienModel.objects.filter(agence_id=agence_id)
         return [BienMapper.to_domain(m) for m in models]

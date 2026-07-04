@@ -2,6 +2,7 @@
 Use case pour créer un contrat de location.
 Calcule le montant total en appliquant les règles de tarification,
 vérifie la disponibilité du bien (état + contrats actifs), et persiste le contrat.
+Toutes les vérifications tiennent compte de l'agence.
 """
 from datetime import date
 from uuid import UUID
@@ -36,7 +37,7 @@ class LouerBienUseCase:
         Args:
             client_id: UUID du client
             bien_id: UUID du bien
-            agence_id: UUID de l'agence (pour les règles de tarification)
+            agence_id: UUID de l'agence (pour les règles et la vérification d'appartenance)
             date_debut: date de début de la location
             date_fin: date de fin de la location
 
@@ -44,18 +45,18 @@ class LouerBienUseCase:
             Contrat: le contrat créé avec le montant total calculé
 
         Raises:
-            ValueError: si client/bien introuvable, bien non disponible,
-                        dates invalides, ou erreur de tarification.
+            ValueError: si client/bien introuvable ou non autorisé,
+                        bien non disponible, dates invalides, ou erreur de tarification.
         """
-        # 1. Vérification du client
-        client = self.client_repo.get(client_id)
+        # 1. Vérification du client (avec appartenance à l'agence)
+        client = self.client_repo.get(client_id, agence_id=agence_id)
         if not client:
-            raise ValueError("Client introuvable")
+            raise ValueError("Client introuvable ou non autorisé")
 
-        # 2. Vérification du bien
-        bien = self.bien_repo.get(bien_id)
+        # 2. Vérification du bien (avec appartenance à l'agence)
+        bien = self.bien_repo.get(bien_id, agence_id=agence_id)
         if not bien:
-            raise ValueError("Bien introuvable")
+            raise ValueError("Bien introuvable ou non autorisé")
 
         # 3. Vérification de l'état du bien (doit être disponible)
         if bien.etat != EtatBien.DISPONIBLE:
@@ -63,8 +64,8 @@ class LouerBienUseCase:
                 f"Le bien n'est pas disponible pour la location. État actuel : {bien.etat.value}"
             )
 
-        # 4. Vérification de la disponibilité (contrats actifs)
-        conflits = self.contrat_repo.find_by_bien_et_periode(bien_id, date_debut, date_fin)
+        # 4. Vérification de la disponibilité (contrats actifs de l'agence)
+        conflits = self.contrat_repo.find_by_bien_et_periode(bien_id, date_debut, date_fin, agence_id=agence_id)
         if conflits:
             raise ValueError("Le bien est déjà loué sur cette période.")
 
@@ -89,13 +90,14 @@ class LouerBienUseCase:
             date_debut=date_debut
         )
 
-        # 9. Création du contrat
+        # 9. Création du contrat (avec agence_id)
         contrat = Contrat(
             client_id=client_id,
             bien_id=bien_id,
             date_debut=date_debut,
             date_fin=date_fin,
-            montant_total=Montant(prix_final)
+            montant_total=Montant(prix_final),
+            agence_id=agence_id
         )
 
         # 10. Persistance

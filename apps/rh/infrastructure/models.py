@@ -1,5 +1,9 @@
+"""
+Modèles Django pour le module RH.
+"""
 from django.db import models
 import uuid
+
 
 class EmployeModel(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -13,8 +17,12 @@ class EmployeModel(models.Model):
     est_actif = models.BooleanField(default=True)
     role_id = models.UUIDField(null=True, blank=True)  # lien vers RoleModel
 
+    # Champ pour lier l'employé à une agence
+    agence_id = models.UUIDField(null=True, blank=True, db_index=True)
+
     class Meta:
         db_table = 'rh_employe'
+
 
 class PointageModel(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -26,6 +34,7 @@ class PointageModel(models.Model):
     class Meta:
         db_table = 'rh_pointage'
 
+
 class EvaluationModel(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     employe = models.ForeignKey(EmployeModel, on_delete=models.CASCADE)
@@ -36,6 +45,7 @@ class EvaluationModel(models.Model):
 
     class Meta:
         db_table = 'rh_evaluation'
+
 
 class RoleModel(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

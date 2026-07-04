@@ -10,7 +10,6 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .tokens import account_activation_token
 
-
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
@@ -35,7 +34,12 @@ def register(request):
 
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = account_activation_token.make_token(user)
-    base_url = request.headers.get('Origin', 'http://localhost:8000')
+
+    # ❌ Ancienne méthode : utilisait l'Origin du frontend
+    # base_url = request.headers.get('Origin', 'http://localhost:8000')
+
+    # ✅ Nouvelle méthode : utilise l'URL du backend (celle qui reçoit la requête)
+    base_url = request.build_absolute_uri('/')[:-1]  # enlève le slash final
     activation_link = f"{base_url}/api/auth/activate/{uid}/{token}/"
 
     send_mail(

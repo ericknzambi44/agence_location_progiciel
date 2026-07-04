@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
+from typing import Optional
 from administration.domain.value_objects.telephone import Telephone
 from shared_kernel.domain.value_objects import Email, PersonName
- 
+
 
 
 @dataclass
@@ -11,7 +12,8 @@ class Client:
     prenom: PersonName
     email: Email
     telephone: Telephone
-    adresse: str  # simple texte
+    adresse: str
+    agence_id: Optional[UUID] = None
     id: UUID = field(default_factory=uuid4)
     est_actif: bool = True
 

@@ -2,6 +2,7 @@
 Entité domaine représentant une intervention de maintenance.
 Contient toute la logique métier : planification, démarrage, ajout de pièces,
 terminaison, calcul des coûts, et vérification des conflits de planning.
+L'agence_id permet de lier l'intervention à une agence pour le filtrage multi-agences.
 """
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -18,10 +19,10 @@ from maintenance.domain.entities.piece_detachee import PieceDetachee
 class Intervention:
     """
     Intervention technique sur un bien.
-    Gère son cycle de vie et ses coûts.
+    Gère son cycle de vie, ses coûts, et appartient à une agence.
     """
 
-    bien_id: UUID
+    bien_id: UUID  # obligatoire (sans valeur par défaut)
     id: Optional[UUID] = None
     technicien: Optional[Technicien] = None
     date_debut: Optional[datetime] = None
@@ -34,6 +35,9 @@ class Intervention:
     # Coûts internes (non exposés directement)
     _cout_main_oeuvre: Decimal = field(default=Decimal(0), repr=False)
     _cout_total: Decimal = field(default=Decimal(0), repr=False)
+
+    # Champ pour le multi-agences (doit être présent dans l'entité)
+    agence_id: Optional[UUID] = None
 
     def __post_init__(self):
         """Validation des contraintes à l'instanciation."""
