@@ -40,7 +40,7 @@ class TestRHAPI:
         create_url = reverse('employe-list')
         create_resp = authenticated_client.post(create_url, sample_employe_data, format='json')
         employe_id = create_resp.data['id']
-        pointage_url = reverse('pointage-create')  # à vérifier le nom exact
+        pointage_url = reverse('pointage-create') 
         data = {
             "employe_id": employe_id,
             "type": "ENTRY",

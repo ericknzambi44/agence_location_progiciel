@@ -11,7 +11,7 @@ sys.path.insert(0, str(BASE_DIR / 'apps'))
 # ============================================================
 # 1. VARIABLES D'ENVIRONNEMENT (lues depuis .env)
 # ============================================================
-SECRET_KEY = config('DJANGO_SECRET_KEY', default='django-insecure-votre-cle-ici-pour-dev')
+SECRET_KEY = config('DJANGO_SECRET_KEY', default='django-insecure-ma-cle-ici-dev')
 DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
@@ -56,7 +56,7 @@ INSTALLED_APPS = [
 # 4. MIDDLEWARE (ordre crucial)
 # ============================================================
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # ⚠️ DOIT être en premier
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

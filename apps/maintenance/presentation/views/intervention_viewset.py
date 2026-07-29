@@ -1,41 +1,66 @@
 """
-ViewSet pour les interventions de maintenance.
-Toutes les opérations sont filtrées par agence via AgenceMixin.
+Module de Présentation - Maintenance (Clean Architecture / DDD)
+
+Expose les cas d'utilisation de gestion des interventions, pièces détachées et techniciens.
+Sécurité assurée par le RBAC (HasModulePermission) et l'isolation multi-agence (AgenceMixin).
 """
-from rest_framework import viewsets, status
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
-from uuid import UUID
+
 from datetime import date
+from uuid import UUID
 
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from authentication.permissions import HasModulePermission
 from config.mixins import AgenceMixin
-
-from maintenance.presentation.serializers.intervention_serializer import (
-    InterventionInputSerializer, InterventionOutputSerializer
+from maintenance.application.services.tarification_maintenance_service import (
+    TarificationMaintenanceService,
 )
-from maintenance.presentation.serializers.technicien_serializer import TechnicienSerializer
-from maintenance.presentation.serializers.piece_serializer import PieceDetacheeSerializer
-from maintenance.application.use_cases.planifier_intervention import PlanifierInterventionUseCase
-from maintenance.application.use_cases.demarrer_intervention import DemarrerInterventionUseCase
 from maintenance.application.use_cases.ajouter_piece import AjouterPieceUseCase
-from maintenance.application.use_cases.terminer_intervention import TerminerInterventionUseCase
 from maintenance.application.use_cases.calculer_cout import CalculerCoutInterventionUseCase
+from maintenance.application.use_cases.demarrer_intervention import DemarrerInterventionUseCase
+from maintenance.application.use_cases.planifier_intervention import PlanifierInterventionUseCase
 from maintenance.application.use_cases.retirer_piece import RetirerPieceUseCase
-from maintenance.application.services.tarification_maintenance_service import TarificationMaintenanceService
-from maintenance.infrastructure.repositories.django_intervention_repository import DjangoInterventionRepository
-from maintenance.infrastructure.repositories.django_technicien_repository import DjangoTechnicienRepository
-from maintenance.infrastructure.repositories.django_piece_repository import DjangoPieceDetacheeRepository
-from maintenance.infrastructure.repositories.django_regle_maintenance_repository import DjangoRegleMaintenanceRepository
+from maintenance.application.use_cases.terminer_intervention import TerminerInterventionUseCase
+from maintenance.infrastructure.repositories.django_intervention_repository import (
+    DjangoInterventionRepository,
+)
+from maintenance.infrastructure.repositories.django_piece_repository import (
+    DjangoPieceDetacheeRepository,
+)
+from maintenance.infrastructure.repositories.django_regle_maintenance_repository import (
+    DjangoRegleMaintenanceRepository,
+)
+from maintenance.infrastructure.repositories.django_technicien_repository import (
+    DjangoTechnicienRepository,
+)
+from maintenance.presentation.serializers.intervention_serializer import (
+    InterventionInputSerializer,
+    InterventionOutputSerializer,
+)
+from maintenance.presentation.serializers.piece_serializer import PieceDetacheeSerializer
+from maintenance.presentation.serializers.technicien_serializer import TechnicienSerializer
 from stock.infrastructure.repositories.django_bien_repository import DjangoBienRepository
 
 
 class InterventionViewSet(AgenceMixin, viewsets.ViewSet):
-    permission_classes = [IsAuthenticated]
+    """
+    ViewSet gérant la planification, l'exécution et le suivi financier des interventions.
+
+    Attributs DDD / RBAC :
+        permission_classes: Validation RBAC sur le module Maintenance.
+        required_module: Module applicatif ciblé ('maintenance').
+        required_model: Modèle de domaine principal ciblé ('interventionmodel').
+    """
+
+    permission_classes = [HasModulePermission]
+    required_module = 'maintenance'
+    required_model = 'interventionmodel'
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # Injection des dépendances d'infrastructure
         self.intervention_repo = DjangoInterventionRepository()
         self.technicien_repo = DjangoTechnicienRepository()
         self.piece_repo = DjangoPieceDetacheeRepository()
@@ -44,49 +69,66 @@ class InterventionViewSet(AgenceMixin, viewsets.ViewSet):
         self.tarif_service = TarificationMaintenanceService(regle_repo)
 
     def list(self, request):
-        try:
-            agence_id = self.get_agence_id()
-        except PermissionDenied as e:
-            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        """
+        Récupère la liste de toutes les interventions de l'agence.
 
+        Permission requise : maintenance.view_interventionmodel
+        """
+        agence_id = self.get_agence_id()
         interventions = self.intervention_repo.find_all(agence_id=agence_id)
         serializer = InterventionOutputSerializer(interventions, many=True)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def retrieve(self, request, pk=None):
-        try:
-            agence_id = self.get_agence_id()
-        except PermissionDenied as e:
-            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        """
+        Consulte les détails d'une intervention par UUID.
 
-        intervention = self.intervention_repo.get(UUID(pk), agence_id=agence_id)
+        Permission requise : maintenance.view_interventionmodel
+        """
+        agence_id = self.get_agence_id()
+
+        try:
+            intervention_uuid = UUID(pk)
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Identifiant UUID d'intervention invalide."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        intervention = self.intervention_repo.get(intervention_uuid, agence_id=agence_id)
         if not intervention:
-            return Response({"error": "Intervention non trouvée ou non autorisée"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Intervention non trouvée ou non autorisée pour votre agence."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         serializer = InterventionOutputSerializer(intervention)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request):
-        try:
-            agence_id = self.get_agence_id()
-        except PermissionDenied as e:
-            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        """
+        Planifie une nouvelle intervention de maintenance.
+
+        Permission requise : maintenance.add_interventionmodel
+        """
+        agence_id = self.get_agence_id()
 
         serializer = InterventionInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        uc = PlanifierInterventionUseCase(
+        use_case = PlanifierInterventionUseCase(
             self.intervention_repo,
             self.technicien_repo,
-            self.bien_repo
+            self.bien_repo,
         )
         try:
-            intervention = uc.execute(
+            intervention = use_case.execute(
                 bien_id=data['bien_id'],
                 technicien_id=data['technicien_id'],
                 date_debut=data['date_debut'],
                 date_fin=data['date_fin'],
-                agence_id=agence_id
+                agence_id=agence_id,
             )
             output = InterventionOutputSerializer(intervention).data
             return Response(output, status=status.HTTP_201_CREATED)
@@ -95,116 +137,212 @@ class InterventionViewSet(AgenceMixin, viewsets.ViewSet):
 
     @action(detail=True, methods=['post'], url_path='demarrer')
     def demarrer(self, request, pk=None):
-        try:
-            agence_id = self.get_agence_id()
-        except PermissionDenied as e:
-            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        """
+        Passe une intervention à l'état EN_COURS.
 
-        intervention = self.intervention_repo.get(UUID(pk), agence_id=agence_id)
+        Permission requise : maintenance.change_interventionmodel
+        """
+        agence_id = self.get_agence_id()
+
+        try:
+            intervention_uuid = UUID(pk)
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Identifiant UUID invalide."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        intervention = self.intervention_repo.get(intervention_uuid, agence_id=agence_id)
         if not intervention:
-            return Response({"error": "Intervention non trouvée ou non autorisée"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Intervention non trouvée ou non autorisée."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-        uc = DemarrerInterventionUseCase(self.intervention_repo)
+        use_case = DemarrerInterventionUseCase(self.intervention_repo)
         try:
-            uc.execute(UUID(pk))
-            return Response({"status": "intervention démarrée"})
+            use_case.execute(intervention_uuid)
+            return Response(
+                {"status": "success", "message": "Intervention démarrée avec succès."},
+                status=status.HTTP_200_OK,
+            )
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'], url_path='ajouter_piece')
     def ajouter_piece(self, request, pk=None):
-        try:
-            agence_id = self.get_agence_id()
-        except PermissionDenied as e:
-            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        """
+        Associe une pièce détachée et sa quantité à une intervention.
 
-        intervention = self.intervention_repo.get(UUID(pk), agence_id=agence_id)
+        Permission requise : maintenance.change_interventionmodel
+        """
+        agence_id = self.get_agence_id()
+
+        try:
+            intervention_uuid = UUID(pk)
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Identifiant UUID invalide."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        intervention = self.intervention_repo.get(intervention_uuid, agence_id=agence_id)
         if not intervention:
-            return Response({"error": "Intervention non trouvée ou non autorisée"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Intervention non trouvée ou non autorisée."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         piece_id = request.data.get('piece_id')
         quantite = request.data.get('quantite', 1)
+
         if not piece_id:
-            return Response({"error": "piece_id requis"}, status=status.HTTP_400_BAD_REQUEST)
-        uc = AjouterPieceUseCase(self.intervention_repo, self.piece_repo)
+            return Response(
+                {"error": "Le champ 'piece_id' est obligatoire."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
-            uc.execute(UUID(pk), UUID(piece_id), int(quantite), agence_id=agence_id)
-            return Response({"status": "pièce ajoutée"})
+            piece_uuid = UUID(piece_id)
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Identifiant UUID de pièce invalide."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        use_case = AjouterPieceUseCase(self.intervention_repo, self.piece_repo)
+        try:
+            use_case.execute(intervention_uuid, piece_uuid, int(quantite), agence_id=agence_id)
+            return Response(
+                {"status": "success", "message": "Pièce ajoutée à l'intervention."},
+                status=status.HTTP_200_OK,
+            )
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'], url_path='terminer')
     def terminer(self, request, pk=None):
-        try:
-            agence_id = self.get_agence_id()
-        except PermissionDenied as e:
-            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        """
+        Clôture l'intervention et calcule le coût global (main d'œuvre + pièces).
 
-        intervention = self.intervention_repo.get(UUID(pk), agence_id=agence_id)
+        Permission requise : maintenance.change_interventionmodel
+        """
+        agence_id = self.get_agence_id()
+
+        try:
+            intervention_uuid = UUID(pk)
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Identifiant UUID invalide."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        intervention = self.intervention_repo.get(intervention_uuid, agence_id=agence_id)
         if not intervention:
-            return Response({"error": "Intervention non trouvée ou non autorisée"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Intervention non trouvée ou non autorisée."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-        uc = TerminerInterventionUseCase(self.intervention_repo, self.tarif_service)
+        use_case = TerminerInterventionUseCase(self.intervention_repo, self.tarif_service)
         try:
-            cout_total = uc.execute(UUID(pk), agence_id, date.today())
-            return Response({"cout_total": cout_total})
+            cout_total = use_case.execute(intervention_uuid, agence_id, date.today())
+            return Response(
+                {"status": "success", "cout_total": cout_total},
+                status=status.HTTP_200_OK,
+            )
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['get'], url_path='cout', url_name='cout')
     def calculer_cout(self, request, pk=None):
-        try:
-            agence_id = self.get_agence_id()
-        except PermissionDenied as e:
-            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        """
+        Calcule le coût actuel estimé de l'intervention.
 
-        intervention = self.intervention_repo.get(UUID(pk), agence_id=agence_id)
+        Permission requise : maintenance.view_interventionmodel
+        """
+        agence_id = self.get_agence_id()
+
+        try:
+            intervention_uuid = UUID(pk)
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Identifiant UUID invalide."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        intervention = self.intervention_repo.get(intervention_uuid, agence_id=agence_id)
         if not intervention:
-            return Response({"error": "Intervention non trouvée ou non autorisée"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Intervention non trouvée ou non autorisée."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-        uc = CalculerCoutInterventionUseCase(self.intervention_repo)
+        use_case = CalculerCoutInterventionUseCase(self.intervention_repo)
         try:
-            cout = uc.execute(UUID(pk))
-            return Response({"cout_total": float(cout.valeur)})
+            cout = use_case.execute(intervention_uuid)
+            return Response(
+                {"cout_total": float(cout.valeur)},
+                status=status.HTTP_200_OK,
+            )
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'], url_path='pieces')
     def lister_pieces(self, request):
-        try:
-            agence_id = self.get_agence_id()
-        except PermissionDenied as e:
-            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        """
+        Consulte le catalogue des pièces détachées de l'agence.
 
+        Permission requise : maintenance.view_interventionmodel
+        """
+        agence_id = self.get_agence_id()
         pieces = self.piece_repo.find_all(agence_id=agence_id)
         serializer = PieceDetacheeSerializer(pieces, many=True)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'], url_path='techniciens')
     def lister_techniciens(self, request):
-        try:
-            agence_id = self.get_agence_id()
-        except PermissionDenied as e:
-            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        """
+        Consulte l'annuaire des techniciens de l'agence.
 
+        Permission requise : maintenance.view_interventionmodel
+        """
+        agence_id = self.get_agence_id()
         techniciens = self.technicien_repo.get_all(agence_id=agence_id)
         serializer = TechnicienSerializer(techniciens, many=True)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['delete'], url_path='pieces/(?P<piece_id>[^/.]+)')
     def retirer_piece(self, request, pk=None, piece_id=None):
-        try:
-            agence_id = self.get_agence_id()
-        except PermissionDenied as e:
-            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        """
+        Retire une pièce détachée d'une intervention.
 
-        intervention = self.intervention_repo.get(UUID(pk), agence_id=agence_id)
+        Permission requise : maintenance.delete_interventionmodel
+        """
+        agence_id = self.get_agence_id()
+
+        try:
+            intervention_uuid = UUID(pk)
+            piece_uuid = UUID(piece_id)
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "UUID d'intervention ou de pièce invalide."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        intervention = self.intervention_repo.get(intervention_uuid, agence_id=agence_id)
         if not intervention:
-            return Response({"error": "Intervention non trouvée ou non autorisée"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Intervention non trouvée ou non autorisée."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-        uc = RetirerPieceUseCase(self.intervention_repo, self.piece_repo)
+        use_case = RetirerPieceUseCase(self.intervention_repo, self.piece_repo)
         try:
-            uc.execute(UUID(pk), UUID(piece_id), agence_id=agence_id)
-            return Response({"status": "pièce retirée"})
+            use_case.execute(intervention_uuid, piece_uuid, agence_id=agence_id)
+            return Response(
+                {"status": "success", "message": "Pièce retirée avec succès."},
+                status=status.HTTP_200_OK,
+            )
         except ValueError as e:
-            return Response({"error": str(e)}, status=400)
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
