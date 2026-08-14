@@ -1,7 +1,7 @@
 """
 Module de Présentation - Location (Clean Architecture / DDD)
 
-Expose les cas d'utilisation de la gestion des clients, des contrats et 
+Expose les cas d'utilisation de la gestion des clients, des contrats et
 des règles de tarification via des endpoints HTTP.
 Sécurité assurée par le RBAC (HasModulePermission) et l'isolation multi-agence (AgenceMixin).
 """
@@ -39,9 +39,10 @@ class LocationViewSet(AgenceMixin, viewsets.ViewSet):
     """
     ViewSet gérant la relation client, la création de contrats et le processus de retour.
 
-    Attributs DDD / RBAC :
-        permission_classes: Exige la validation RBAC sur le module Location.
-        required_module: Nom du module pour la vérification des droits ('location').
+    RBAC :
+        permission_classes : HasModulePermission
+        required_module    : 'location'
+        Le modèle requis est défini dynamiquement selon l'action.
     """
 
     permission_classes = [HasModulePermission]
@@ -56,17 +57,44 @@ class LocationViewSet(AgenceMixin, viewsets.ViewSet):
         regle_repo = DjangoRegleTarificationRepository()
         self.tarif_service = TarificationService(regle_repo)
 
-    # --- GESTION DES CLIENTS ---
+    # --------------------------------------------------------------------------
+    # Mapping action -> modèle pour permissions RBAC
+    # --------------------------------------------------------------------------
+    def get_permissions(self):
+        """
+        Associe chaque action au nom de modèle Django attendu par la permission.
+        Les noms sont sans suffixe `Model` (ex: 'client', 'contrat').
+        """
+        action_model_map = {
+            'create_client': 'client',
+            'list_clients': 'client',
+            'create_contrat': 'contrat',
+            'list_contrats': 'contrat',
+            'retourner': 'contrat',
+            'calculer_montant': 'contrat',
+        }
+        if self.action in action_model_map:
+            self.required_model = action_model_map[self.action]
+        return super().get_permissions()
+
+    # --------------------------------------------------------------------------
+    # Gestion des clients
+    # --------------------------------------------------------------------------
 
     @action(detail=False, methods=['post'], url_path='clients/creer')
     def create_client(self, request):
         """
+        POST /api/location/clients/creer/
         Enregistre un nouveau client rattaché à l'agence de l'utilisateur.
 
-        Permission requise : location.add_clientmodel
+        Permission requise : location.add_client
         """
-        self.required_model = 'clientmodel'
         agence_id = self.get_agence_id()
+        if agence_id is None:
+            return Response(
+                {"error": "Aucune agence associée à cet utilisateur."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         serializer = ClientInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -82,27 +110,37 @@ class LocationViewSet(AgenceMixin, viewsets.ViewSet):
     @action(detail=False, methods=['get'], url_path='clients')
     def list_clients(self, request):
         """
+        GET /api/location/clients/
         Consulte l'annuaire des clients de l'agence.
 
-        Permission requise : location.view_clientmodel
+        Permission requise : location.view_client
         """
-        self.required_model = 'clientmodel'
         agence_id = self.get_agence_id()
+        if agence_id is None:
+            return Response([], status=status.HTTP_200_OK)
 
         clients = self.client_repo.list_all(agence_id=agence_id)
         serializer = ClientOutputSerializer(clients, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # --- GESTION DES CONTRATS ---
+    # --------------------------------------------------------------------------
+    # Gestion des contrats
+    # --------------------------------------------------------------------------
 
-    def create(self, request):
+    @action(detail=False, methods=['post'], url_path='contrats/creer')
+    def create_contrat(self, request):
         """
-        Génère un nouveau contrat de location (Location d'un bien à un client).
+        POST /api/location/contrats/creer/
+        Génère un nouveau contrat de location.
 
-        Permission requise : location.add_contratmodel
+        Permission requise : location.add_contrat
         """
-        self.required_model = 'contratmodel'
         agence_id = self.get_agence_id()
+        if agence_id is None:
+            return Response(
+                {"error": "Aucune agence associée à cet utilisateur."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         serializer = ContratInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -127,14 +165,17 @@ class LocationViewSet(AgenceMixin, viewsets.ViewSet):
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    def list(self, request):
+    @action(detail=False, methods=['get'], url_path='contrats')
+    def list_contrats(self, request):
         """
+        GET /api/location/contrats/
         Consulte la liste complète des contrats de location de l'agence.
 
-        Permission requise : location.view_contratmodel
+        Permission requise : location.view_contrat
         """
-        self.required_model = 'contratmodel'
         agence_id = self.get_agence_id()
+        if agence_id is None:
+            return Response([], status=status.HTTP_200_OK)
 
         use_case = ConsulterContratsUseCase(self.contrat_repo)
         contrats = use_case.execute(agence_id=agence_id)
@@ -144,13 +185,12 @@ class LocationViewSet(AgenceMixin, viewsets.ViewSet):
     @action(detail=True, methods=['post'], url_path='retourner')
     def retourner(self, request, pk=None):
         """
+        POST /api/location/{contrat_uuid}/retourner/
         Clôture un contrat actif en marquant le bien comme retourné.
 
-        Permission requise : location.change_contratmodel
+        Permission requise : location.change_contrat
         """
-        self.required_model = 'contratmodel'
         agence_id = self.get_agence_id()
-
         try:
             contrat_uuid = UUID(pk)
         except (ValueError, TypeError):
@@ -176,17 +216,24 @@ class LocationViewSet(AgenceMixin, viewsets.ViewSet):
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    # --- CALCUL DU MONTANT ESTIMÉ ---
+    # --------------------------------------------------------------------------
+    # Calcul du montant estimé
+    # --------------------------------------------------------------------------
 
     @action(detail=False, methods=['post'], url_path='calculer-montant')
     def calculer_montant(self, request):
         """
-        Simule et calcule le coût estimé d'une location en fonction de la tarification dynamique.
+        POST /api/location/calculer-montant/
+        Simule et calcule le coût estimé d'une location.
 
-        Permission requise : location.view_contratmodel
+        Permission requise : location.view_contrat
         """
-        self.required_model = 'contratmodel'
         agence_id = self.get_agence_id()
+        if agence_id is None:
+            return Response(
+                {"error": "Aucune agence associée à cet utilisateur."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         bien_id = request.data.get('bien_id')
         date_debut = request.data.get('date_debut')

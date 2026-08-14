@@ -1,6 +1,7 @@
 """
-Serializers pour la gestion des règles de tarification de maintenance.
+Sérialiseurs pour la gestion des règles de tarification de maintenance.
 """
+
 from rest_framework import serializers
 from maintenance.domain.value_objects.regle_maintenance import TypeRegleMaintenance
 
@@ -9,6 +10,7 @@ class TypeRegleMaintenanceField(serializers.Field):
     """
     Champ personnalisé pour sérialiser/désérialiser les valeurs de TypeRegleMaintenance.
     """
+
     def to_representation(self, value):
         if isinstance(value, TypeRegleMaintenance):
             return value.value
@@ -27,6 +29,7 @@ class RegleMaintenanceSerializer(serializers.Serializer):
     """
     Serializer pour une règle de tarification de maintenance.
     """
+
     type = TypeRegleMaintenanceField()
     valeur = serializers.DecimalField(max_digits=10, decimal_places=2)
     duree_min = serializers.IntegerField(min_value=0, default=0)
@@ -40,8 +43,8 @@ class RegleMaintenanceSerializer(serializers.Serializer):
 class RegleMaintenanceInputSerializer(serializers.Serializer):
     """
     Serializer pour la requête POST /regles-maintenance/.
-    Attend une liste de règles.
     """
+
     regles = RegleMaintenanceSerializer(many=True)
 
 
@@ -49,4 +52,5 @@ class RegleMaintenanceOutputSerializer(RegleMaintenanceSerializer):
     """
     Serializer pour la réponse GET /regles-maintenance/.
     """
+
     pass

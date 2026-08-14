@@ -1,8 +1,10 @@
 """
 Use case pour créer un nouveau bien.
+
 Valide les données, vérifie l'unicité de la référence,
-assigne l'agence_id et persiste le bien.
+assigne l'agence_id automatiquement et persiste le bien.
 """
+
 from datetime import date
 from decimal import Decimal
 from uuid import UUID
@@ -24,20 +26,27 @@ class CreerBienUseCase:
     def __init__(self, repo: BienRepository):
         self.repo = repo
 
-    def execute(self, reference: str, nom: str, description: str = None,
-                prix: float = 0.0, currency: str = "USD", date_achat: date = None,
-                agence_id: UUID = None) -> Bien:
+    def execute(
+        self,
+        reference: str,
+        nom: str,
+        description: str = None,
+        prix: float = 0.0,
+        currency: str = "USD",
+        date_achat: date = None,
+        agence_id: UUID = None
+    ) -> Bien:
         """
         Exécute la création d'un bien.
 
         Args:
             reference (str): Référence unique du bien.
             nom (str): Nom du bien.
-            description (str, optional): Description. Défaut None.
+            description (str, optional): Description.
             prix (float): Prix unitaire HT par jour.
-            currency (str): Devise (ISO 4217). Défaut "USD".
-            date_achat (date, optional): Date d'achat. Défaut None.
-            agence_id (UUID): Identifiant de l'agence propriétaire. Obligatoire.
+            currency (str): Devise (ISO 4217).
+            date_achat (date, optional): Date d'achat.
+            agence_id (UUID): Identifiant de l'agence propriétaire (obligatoire).
 
         Returns:
             Bien: L'entité bien créée.
@@ -54,7 +63,7 @@ class CreerBienUseCase:
         prix_vo = PrixHT(amount=Decimal(str(prix)), currency=currency)
 
         # 2. Vérification de l'unicité de la référence (dans l'agence)
-        existing = self.repo.get_by_reference(ref_vo, agence_id=agence_id)
+        existing = self.repo.get_by_reference(ref_vo.value, agence_id=agence_id)
         if existing:
             raise ValueError("Une référence unique est requise dans cette agence.")
 

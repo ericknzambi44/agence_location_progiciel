@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     # Modules métier
     'stock',
     'maintenance',
-    'rh',
+    'rh.apps.RhConfig',
     'administration',
     'authentication',
     'location',

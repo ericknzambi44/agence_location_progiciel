@@ -1,39 +1,38 @@
 """
-Mixin pour les ViewSets qui doivent filtrer par agence.
+Mixins partagés pour l'isolation multi-agence.
+
+Ce module fournit des classes utilitaires permettant de récupérer
+l'agence de l'utilisateur connecté à partir de son compte employé.
 """
-from rest_framework.exceptions import PermissionDenied
-from rh.infrastructure.models import EmployeModel
+
+from rh.infrastructure.models import Employe
 
 
 class AgenceMixin:
     """
-    Fournit la méthode get_agence_id() pour récupérer l'agence de l'utilisateur.
+    Mixin fournissant des méthodes utilitaires pour déterminer
+    l'agence de l'utilisateur connecté.
+
+    Méthodes :
+        get_agence_id() -> UUID | None
+            Retourne l'identifiant de l'agence de l'employé lié.
     """
 
     def get_agence_id(self):
         """
-        Retourne l'ID de l'agence de l'utilisateur connecté.
-        - Si l'utilisateur est superuser, retourne None (pas de filtre).
-        - Sinon, recherche l'employé via son email.
-        - Lève PermissionDenied si l'utilisateur n'a pas d'agence.
+        Retourne l'identifiant de l'agence de l'utilisateur connecté.
+
+        Returns:
+            UUID | None: L'identifiant de l'agence, ou None si aucun employé
+            n'est associé à l'utilisateur ou si l'employé n'a pas d'agence.
         """
         user = self.request.user
-
-        # Les superusers voient toutes les données (pas de filtre)
-        if user.is_superuser:
+        if not user.is_authenticated:
             return None
 
-        # Récupérer l'employé à partir de l'email
         try:
-            employe = EmployeModel.objects.get(email=user.email)
-        except EmployeModel.DoesNotExist:
-            raise PermissionDenied(
-                "Aucun employé associé à cet utilisateur. Veuillez contacter l'administrateur."
-            )
-
-        if not employe.agence_id:
-            raise PermissionDenied(
-                "Cet utilisateur n'est pas rattaché à une agence. Veuillez contacter l'administrateur."
-            )
-
-        return employe.agence_id
+            # Utilise la relation OneToOne définie dans Employe
+            employe = user.employe_rh
+            return employe.agence_id
+        except Employe.DoesNotExist:
+            return None

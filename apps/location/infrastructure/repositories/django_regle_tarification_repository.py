@@ -1,14 +1,15 @@
 """
 Repository Django pour les règles de tarification.
+
 Utilise le mapper pour convertir entre les modèles et les entités du domaine.
 """
-from django.core.exceptions import ObjectDoesNotExist
+
 from typing import Optional
 from uuid import UUID
 
 from location.domain.repositories.regle_tarification_repository import RegleTarificationRepository
 from location.domain.entities.regle_tarification import ReglesTarification
-from location.infrastructure.models import RegleTarificationModel
+from location.infrastructure.models import RegleTarification  # Modèle Django (RegleTarification)
 from location.infrastructure.mappers.regle_tarification_mapper import RegleTarificationMapper
 
 
@@ -22,12 +23,12 @@ class DjangoRegleTarificationRepository(RegleTarificationRepository):
         Récupère toutes les règles de tarification pour une agence donnée.
 
         Args:
-            agence_id: UUID de l'agence
+            agence_id (UUID): Identifiant de l'agence.
 
         Returns:
-            ReglesTarification: agrégat contenant les règles, ou None si aucune
+            ReglesTarification: Agrégat contenant les règles, ou None si aucune.
         """
-        models = RegleTarificationModel.objects.filter(agence_id=agence_id)
+        models = RegleTarification.objects.filter(agence_id=agence_id)
         if not models.exists():
             return None
         regles = [RegleTarificationMapper.to_domain(m) for m in models]
@@ -36,13 +37,14 @@ class DjangoRegleTarificationRepository(RegleTarificationRepository):
     def save(self, regles: ReglesTarification) -> None:
         """
         Sauvegarde (remplace) l'ensemble des règles pour une agence.
-        Supprime les anciennes et crée les nouvelles.
+
+        Supprime les anciennes règles puis crée les nouvelles.
 
         Args:
-            regles: agrégat ReglesTarification contenant les nouvelles règles
+            regles (ReglesTarification): Agrégat contenant les nouvelles règles.
         """
         # Suppression des anciennes règles de l'agence
-        RegleTarificationModel.objects.filter(agence_id=regles.agence_id).delete()
+        RegleTarification.objects.filter(agence_id=regles.agence_id).delete()
 
         # Création des nouvelles
         for r in regles.regles:

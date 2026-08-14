@@ -1,9 +1,11 @@
 """
-Mapper entre l'entité domaine Technicien et le modèle ORM TechnicienModel.
-Assure la conversion dans les deux sens, incluant l'agence_id pour le multi-agences.
+Mapper entre l'entité domaine Technicien et le modèle ORM Technicien.
+
+Assure la conversion bidirectionnelle, incluant l'agence_id pour le multi-agences.
 """
+
 from maintenance.domain.entities.technicien import Technicien
-from maintenance.infrastructure.models import TechnicienModel
+from maintenance.infrastructure.models import Technicien as TechnicienModel  # alias
 from shared_kernel.domain.value_objects import Email, PersonName
 
 
@@ -14,6 +16,9 @@ class TechnicienMapper:
     def to_domain(model: TechnicienModel) -> Technicien:
         """
         Construit une entité Technicien à partir du modèle Django.
+
+        Returns:
+            Technicien: Entité domaine.
         """
         return Technicien(
             id=model.id,
@@ -21,7 +26,7 @@ class TechnicienMapper:
             prenom=PersonName(model.prenom),
             email=Email(model.email),
             cout_horaire=model.cout_horaire,
-            agence_id=model.agence_id,  # <-- ajout
+            agence_id=model.agence_id,
             est_actif=True
         )
 
@@ -29,6 +34,9 @@ class TechnicienMapper:
     def to_model(entity: Technicien) -> TechnicienModel:
         """
         Construit un modèle Django à partir de l'entité Technicien.
+
+        Returns:
+            TechnicienModel: Instance ORM non persistée.
         """
         return TechnicienModel(
             id=entity.id,

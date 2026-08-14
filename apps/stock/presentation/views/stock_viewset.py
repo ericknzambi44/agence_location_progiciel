@@ -1,8 +1,9 @@
 """
 Module de Présentation - Gestion des Stocks (Clean Architecture / DDD)
 
-Expose la consultation des niveaux de stock et la création des mouvements (entrées/sorties/ajustements).
-Sécurité assurée par le RBAC (HasModulePermission) et l'isolation multi-agence (AgenceMixin).
+Expose la consultation des niveaux de stock et l'enregistrement des mouvements.
+Sécurité assurée par le RBAC (HasModulePermission) et l'isolation multi-agence
+via AgenceMixin : l'agence de l'utilisateur est automatiquement déduite.
 """
 
 from uuid import UUID
@@ -14,9 +15,7 @@ from rest_framework.response import Response
 from authentication.permissions import HasModulePermission
 from config.mixins import AgenceMixin
 from stock.application.use_cases.ajuster_stock import AjusterStockUseCase
-from stock.infrastructure.repositories.django_mouvement_stock_repository import (
-    DjangoMouvementStockRepository,
-)
+from stock.infrastructure.repositories.django_mouvement_stock_repository import DjangoMouvementStockRepository
 from stock.infrastructure.repositories.django_stock_repository import DjangoStockRepository
 from stock.presentation.serializers.stock_serializer import (
     MouvementStockInputSerializer,
@@ -27,11 +26,12 @@ from stock.presentation.serializers.stock_serializer import (
 
 class StockViewSet(AgenceMixin, viewsets.ViewSet):
     """
-    ViewSet gérant les opérations sur les stocks et l'historique des mouvements.
+    ViewSet gérant les niveaux de stock et l'historique des mouvements.
 
-    Attributs DDD / RBAC :
-        permission_classes: Validation RBAC sur le module Stock.
-        required_module: Module applicatif ciblé ('stock').
+    RBAC :
+        permission_classes : HasModulePermission
+        required_module    : 'stock'
+        Modèle cible : 'mouvementstock' pour toutes les actions.
     """
 
     permission_classes = [HasModulePermission]
@@ -39,21 +39,36 @@ class StockViewSet(AgenceMixin, viewsets.ViewSet):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # Injection des repositories du module Stock
         self.stock_repo = DjangoStockRepository()
         self.mouvement_repo = DjangoMouvementStockRepository()
+
+    # --------------------------------------------------------------------------
+    # Définition automatique du modèle pour la permission RBAC
+    # --------------------------------------------------------------------------
+    def get_permissions(self):
+        """
+        Toutes les actions de ce ViewSet concernent le modèle 'mouvementstock'.
+        """
+        action_model_map = {
+            'list': 'mouvementstock',
+            'niveau_article': 'mouvementstock',
+            'lister_mouvements': 'mouvementstock',
+            'create': 'mouvementstock',
+        }
+        if self.action in action_model_map:
+            self.required_model = action_model_map[self.action]
+        return super().get_permissions()
 
     # --- CONSULTATION DES NIVEAUX DE STOCK ---
 
     def list(self, request):
         """
-        Consulte l'état des stocks pour l'ensemble des articles de l'agence.
+        GET /api/stock/stock/
+        Consulte les niveaux de stock de tous les articles de l'agence.
 
-        Permission requise : stock.view_mouvementstockmodel
+        Permission requise : stock.view_mouvementstock
         """
-        self.required_model = 'mouvementstockmodel'
         agence_id = self.get_agence_id()
-
         stocks = self.stock_repo.get_niveaux_stock(agence_id=agence_id)
         serializer = NiveauStockOutputSerializer(stocks, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -61,13 +76,12 @@ class StockViewSet(AgenceMixin, viewsets.ViewSet):
     @action(detail=True, methods=['get'], url_path='niveau')
     def niveau_article(self, request, pk=None):
         """
-        Consulte le niveau de stock précis pour un article donné.
+        GET /api/stock/stock/{article_uuid}/niveau/
+        Niveau de stock d'un article de l'agence.
 
-        Permission requise : stock.view_mouvementstockmodel
+        Permission requise : stock.view_mouvementstock
         """
-        self.required_model = 'mouvementstockmodel'
         agence_id = self.get_agence_id()
-
         try:
             article_uuid = UUID(pk)
         except (ValueError, TypeError):
@@ -89,13 +103,12 @@ class StockViewSet(AgenceMixin, viewsets.ViewSet):
     @action(detail=False, methods=['get'], url_path='mouvements')
     def lister_mouvements(self, request):
         """
-        Consulte le journal des mouvements de stock de l'agence.
+        GET /api/stock/stock/mouvements/
+        Journal des mouvements de stock de l'agence.
 
-        Permission requise : stock.view_mouvementstockmodel
+        Permission requise : stock.view_mouvementstock
         """
-        self.required_model = 'mouvementstockmodel'
         agence_id = self.get_agence_id()
-
         mouvements = self.mouvement_repo.get_all(agence_id=agence_id)
         serializer = MouvementStockOutputSerializer(mouvements, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -104,12 +117,18 @@ class StockViewSet(AgenceMixin, viewsets.ViewSet):
 
     def create(self, request):
         """
-        Enregistre un mouvement de stock (entrée, sortie, ou ajustement d'inventaire).
+        POST /api/stock/stock/
+        Enregistre un mouvement de stock (entrée, sortie, ajustement)
+        pour l'agence de l'utilisateur.
 
-        Permission requise : stock.add_mouvementstockmodel
+        Permission requise : stock.add_mouvementstock
         """
-        self.required_model = 'mouvementstockmodel'
         agence_id = self.get_agence_id()
+        if agence_id is None:
+            return Response(
+                {"error": "Aucune agence associée à cet utilisateur."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         serializer = MouvementStockInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

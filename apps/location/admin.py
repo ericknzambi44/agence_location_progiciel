@@ -1,38 +1,66 @@
 """
 Enregistrement des modèles du module Location dans l'interface d'administration Django.
-Permet de gérer les clients et les contrats de location via l'interface admin.
+
+Permet de gérer les clients, les contrats de location et les règles de
+tarification via l'interface admin.
+
+Les modèles sont enregistrés sous leurs nouveaux noms (sans suffixe "Model") :
+    - Client
+    - Contrat
+    - RegleTarification
 """
+
 from django.contrib import admin
-from location.infrastructure.models import ClientModel, ContratModel
+from location.infrastructure.models import Client, Contrat, RegleTarification
 
 
-@admin.register(ClientModel)
-class ClientModelAdmin(admin.ModelAdmin):
+@admin.register(Client)
+class ClientAdmin(admin.ModelAdmin):
     """
     Configuration de l'affichage des clients dans l'admin.
     """
-    list_display = ('nom', 'prenom', 'email', 'telephone', 'est_actif')
+
+    list_display = ('nom', 'prenom', 'email', 'telephone', 'agence', 'est_actif')
     search_fields = ('nom', 'prenom', 'email')
-    list_filter = ('est_actif',)
+    list_filter = ('est_actif', 'agence')
     ordering = ('nom', 'prenom')
 
 
-@admin.register(ContratModel)
-class ContratModelAdmin(admin.ModelAdmin):
+@admin.register(Contrat)
+class ContratAdmin(admin.ModelAdmin):
     """
     Configuration de l'affichage des contrats dans l'admin.
     """
-    list_display = ('id', 'client', 'bien_id', 'date_debut', 'date_fin', 'statut', 'montant_total')
-    list_filter = ('statut',)
+
+    list_display = (
+        'id',
+        'client',
+        'bien_id',
+        'date_debut',
+        'date_fin',
+        'statut',
+        'montant_total',
+        'agence',
+    )
+    list_filter = ('statut', 'agence')
     search_fields = ('client__nom', 'client__prenom', 'bien_id')
     ordering = ('-date_debut',)
 
 
-
-from location.infrastructure.models import RegleTarificationModel
-
-@admin.register(RegleTarificationModel)
+@admin.register(RegleTarification)
 class RegleTarificationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'agence_id', 'type', 'valeur', 'duree_min', 'active')
-    list_filter = ('type', 'active')
-    search_fields = ('description',)    
+    """
+    Configuration de l'affichage des règles de tarification dans l'admin.
+    """
+
+    list_display = (
+        'id',
+        'agence',
+        'type',
+        'valeur',
+        'duree_min',
+        'duree_max',
+        'active',
+    )
+    list_filter = ('type', 'active', 'agence')
+    search_fields = ('description',)

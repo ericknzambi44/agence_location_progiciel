@@ -1,0 +1,18 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div id="content-main">
+    <h1>Synchronisation des permissions RBAC</h1>
+    <p>
+        Cette action crée les permissions manquantes pour tous les modèles
+        et réinitialise les groupes de rôles par défaut.
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        <input type="submit" value="Synchroniser maintenant" class="default" />
+    </form>
+    <br>
+    <a href="{% url 'admin:index' %}">Retour à l'accueil de l'administration</a>
+</div>
+{% endblock %}

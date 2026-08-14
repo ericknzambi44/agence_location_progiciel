@@ -1,50 +1,54 @@
 """
 Repository Django pour les techniciens.
+
 Toutes les méthodes de lecture supportent le filtrage par agence.
 """
-from django.core.exceptions import ObjectDoesNotExist
+
 from typing import Optional, List
 from uuid import UUID
 
+from django.core.exceptions import ObjectDoesNotExist
+
 from maintenance.domain.repositories.technicien_repository import TechnicienRepository
 from maintenance.domain.entities.technicien import Technicien
-from maintenance.infrastructure.models import TechnicienModel
+from maintenance.infrastructure.models import Technicien  # Modèle Django (Technicien)
 from maintenance.infrastructure.mappers.technicien_mapper import TechnicienMapper
 
 
 class DjangoTechnicienRepository(TechnicienRepository):
+    """
+    Implémentation du repository des techniciens avec Django ORM.
+    """
+
     def get(self, id: UUID, agence_id: UUID = None) -> Optional[Technicien]:
         """
-        Récupère un technicien par son ID.
-        Si agence_id est fourni, vérifie qu'il appartient à cette agence.
+        Récupère un technicien par son identifiant, filtré par agence.
         """
         try:
-            qs = TechnicienModel.objects.filter(id=id)
+            qs = Technicien.objects.filter(id=id)
             if agence_id is not None:
                 qs = qs.filter(agence_id=agence_id)
             model = qs.get()
             return TechnicienMapper.to_domain(model)
-        except ObjectDoesNotExist:
+        except Technicien.DoesNotExist:
             return None
 
     def get_by_email(self, email: str, agence_id: UUID = None) -> Optional[Technicien]:
         """
-        Récupère un technicien par son email.
-        Si agence_id est fourni, vérifie qu'il appartient à cette agence.
+        Récupère un technicien par son email, filtré par agence.
         """
         try:
-            qs = TechnicienModel.objects.filter(email=email)
+            qs = Technicien.objects.filter(email=email)
             if agence_id is not None:
                 qs = qs.filter(agence_id=agence_id)
             model = qs.get()
             return TechnicienMapper.to_domain(model)
-        except ObjectDoesNotExist:
+        except Technicien.DoesNotExist:
             return None
 
     def add(self, technicien: Technicien) -> None:
         """
-        Ajoute un nouveau technicien.
-        L'agence_id doit déjà être défini dans l'entité.
+        Insère un nouveau technicien, en exigeant une agence.
         """
         if not hasattr(technicien, 'agence_id') or technicien.agence_id is None:
             raise ValueError("Le technicien doit avoir un agence_id pour être sauvegardé.")
@@ -53,18 +57,19 @@ class DjangoTechnicienRepository(TechnicienRepository):
         technicien.id = model.id
 
     def update(self, technicien: Technicien) -> None:
+        """Met à jour un technicien existant."""
         model = TechnicienMapper.to_model(technicien)
         model.save()
 
     def remove(self, technicien: Technicien) -> None:
-        TechnicienModel.objects.filter(id=technicien.id).delete()
+        """Supprime un technicien."""
+        Technicien.objects.filter(id=technicien.id).delete()
 
     def get_all(self, agence_id: UUID = None) -> List[Technicien]:
         """
-        Retourne tous les techniciens de l'agence.
-        Si agence_id est None, retourne une liste vide.
+        Retourne tous les techniciens d'une agence (liste vide si pas d'agence).
         """
         if agence_id is None:
             return []
-        models = TechnicienModel.objects.filter(agence_id=agence_id)
+        models = Technicien.objects.filter(agence_id=agence_id)
         return [TechnicienMapper.to_domain(m) for m in models]

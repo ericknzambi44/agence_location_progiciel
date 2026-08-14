@@ -31,47 +31,56 @@ class RegleMaintenanceViewSet(AgenceMixin, viewsets.ViewSet):
     """
     ViewSet gérant la configuration des règles de tarification de la maintenance.
 
-    Attributs DDD / RBAC :
-        permission_classes: Validation RBAC sur le module Maintenance.
-        required_module: Module applicatif ciblé ('maintenance').
-        required_model: Modèle de domaine ciblé ('reglemaintenancemodel').
+    RBAC :
+        permission_classes : HasModulePermission
+        required_module    : 'maintenance'
+        Modèle requis : 'reglemaintenance'
     """
 
     permission_classes = [HasModulePermission]
     required_module = 'maintenance'
-    required_model = 'reglemaintenancemodel'
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # Injection du repository et du service de tarification
         self.repo = DjangoRegleMaintenanceRepository()
         self.service = TarificationMaintenanceService(self.repo)
 
-    def list(self, request):
-        """
-        Récupère l'ensemble des règles de tarification de maintenance de l'agence.
+    # --------------------------------------------------------------------------
+    # Mapping action -> modèle pour permissions
+    # --------------------------------------------------------------------------
+    def get_permissions(self):
+        action_model_map = {
+            'list': 'reglemaintenance',
+            'create': 'reglemaintenance',
+        }
+        if self.action in action_model_map:
+            self.required_model = action_model_map[self.action]
+        return super().get_permissions()
 
-        Permission requise : maintenance.view_reglemaintenancemodel
-        """
+    # --------------------------------------------------------------------------
+    # Endpoints
+    # --------------------------------------------------------------------------
+
+    def list(self, request):
+        """GET /api/maintenance/regles/"""
         agence_id = self.get_agence_id()
+        if agence_id is None:
+            return Response({"error": "Aucune agence associée à cet utilisateur."}, status=status.HTTP_400_BAD_REQUEST)
 
         regles = self.service.get_regles(agence_id=agence_id)
         serializer = RegleMaintenanceOutputSerializer(regles.regles, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request):
-        """
-        Enregistre ou met à jour la grille des règles de tarification de maintenance.
-
-        Permission requise : maintenance.add_reglemaintenancemodel
-        """
+        """POST /api/maintenance/regles/"""
         agence_id = self.get_agence_id()
+        if agence_id is None:
+            return Response({"error": "Aucune agence associée à cet utilisateur."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = RegleMaintenanceInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         regles_data = serializer.validated_data['regles']
 
-        # Reconstruction des Value Objects du Domaine
         regles_obj = []
         for r in regles_data:
             regle = RegleMaintenance(
@@ -87,11 +96,9 @@ class RegleMaintenanceViewSet(AgenceMixin, viewsets.ViewSet):
             )
             regles_obj.append(regle)
 
-        # Instanciation de l'agrégat du domaine et persistance
         regles_aggregat = ReglesMaintenance(agence_id=agence_id, regles=regles_obj)
         self.service.sauvegarder_regles(regles_aggregat)
 
-        # Récupération et retour de la liste à jour
         regles_a_jour = self.service.get_regles(agence_id=agence_id)
         output = RegleMaintenanceOutputSerializer(regles_a_jour.regles, many=True)
         return Response(output.data, status=status.HTTP_200_OK)

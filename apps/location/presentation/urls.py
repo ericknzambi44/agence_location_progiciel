@@ -1,43 +1,35 @@
 """
 Définition des URLs du module Location.
-Regroupe les endpoints pour les clients, les contrats, le calcul du montant
-et la gestion des règles de tarification.
+
+Ce module expose les endpoints liés aux clients, contrats, calcul du montant
+estimé et gestion des règles de tarification.
+
+Utilisation du routeur DRF pour générer automatiquement les routes.
+Les ViewSets sont enregistrés avec un préfixe vide pour LocationViewSet
+et 'tarification' pour TarificationViewSet, afin de préserver les chemins existants :
+    - /api/location/clients/
+    - /api/location/contrats/
+    - /api/location/contrats/{uuid}/retourner/
+    - /api/location/calculer-montant/
+    - /api/location/tarification/
 """
-from django.urls import path
+
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+
 from .views.location_viewset import LocationViewSet
 from .views.tarification_viewset import TarificationViewSet
 
-# Instanciation des ViewSets pour le mapping des méthodes
-location_view = LocationViewSet.as_view
-tarif_view = TarificationViewSet.as_view({
-    'get': 'list',    # GET /tarification/ → consulter les règles
-    'post': 'create'  # POST /tarification/ → configurer les règles
-})
+router = DefaultRouter()
+
+# Enregistrement du ViewSet principal de location avec un préfixe vide
+# afin que les actions @action (clients, contrats, calculer-montant)
+# soient directement accessibles sous /api/location/...
+router.register(r'', LocationViewSet, basename='location')
+
+# Enregistrement du ViewSet de tarification sous le préfixe 'tarification'
+router.register(r'tarification', TarificationViewSet, basename='tarification')
 
 urlpatterns = [
-    # ---- Clients ----
-    path('clients/',
-         location_view({'get': 'list_clients', 'post': 'create_client'}),
-         name='client-list'),
-
-    # ---- Contrats ----
-    path('contrats/',
-         location_view({'get': 'list_contrats', 'post': 'create_contrat'}),
-         name='contrat-list'),
-    path('contrats/<uuid:pk>/retourner/',
-         location_view({'post': 'retourner'}),
-         name='contrat-retourner'),
-
-    # ---- Calcul du montant estimé ----
-    path('calculer-montant/',
-         location_view({'post': 'calculer_montant'}),
-         name='calculer-montant'),
-
-
-     path('contrats/<uuid:pk>/', location_view({'get': 'retrieve'}), name='contrat-detail'),    
-
-    # ---- Gestion des règles de tarification ----
-    path('tarification/',
-         tarif_view,
-         name='tarification'),
+    path('', include(router.urls)),
 ]

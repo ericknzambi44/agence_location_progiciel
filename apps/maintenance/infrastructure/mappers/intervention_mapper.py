@@ -1,11 +1,15 @@
 """
-Mapper entre l'entité domaine Intervention et le modèle ORM InterventionModel.
-Assure la conversion dans les deux sens, incluant l'agence_id pour le multi-agences.
+Mapper entre l'entité domaine Intervention et le modèle ORM Intervention.
+
+Assure la conversion bidirectionnelle, incluant l'agence_id pour le multi-agences.
 """
-from maintenance.domain.entities.intervention import Intervention
-from maintenance.domain.entities.piece_detachee import PieceDetachee
-from maintenance.infrastructure.models import InterventionModel, InterventionPieceModel
+
 from typing import List, Tuple
+
+from maintenance.domain.entities.intervention import Intervention  # Entité domaine
+from maintenance.domain.entities.piece_detachee import PieceDetachee
+from maintenance.infrastructure.models import Intervention as InterventionModel  # Modèle Django
+from maintenance.infrastructure.models import InterventionPiece
 
 
 class InterventionMapper:
@@ -15,9 +19,17 @@ class InterventionMapper:
     def to_domain(model: InterventionModel, technicien_repo, piece_repo) -> Intervention:
         """
         Construit une entité Intervention à partir du modèle Django.
-        Inclut la récupération du technicien, des pièces et de l'agence_id.
+
+        Args:
+            model (InterventionModel): Instance du modèle ORM.
+            technicien_repo : Repository pour récupérer le technicien.
+            piece_repo : Repository pour récupérer les pièces.
+
+        Returns:
+            Intervention: Entité domaine.
         """
         technicien = technicien_repo.get(model.technicien_id) if model.technicien_id else None
+
         pieces_models = model.pieces.select_related('piece').all()
         pieces = []
         for ip in pieces_models:
@@ -33,7 +45,7 @@ class InterventionMapper:
             date_fin=model.date_fin,
             statut=model.statut,
             pieces_utilisees=pieces,
-            agence_id=model.agence_id  # <-- ajout de l'agence_id
+            agence_id=model.agence_id
         )
         intervention._cout_main_oeuvre = model.cout_main_oeuvre
         intervention._cout_total = model.cout_total
@@ -43,7 +55,16 @@ class InterventionMapper:
     def to_model(entity: Intervention) -> InterventionModel:
         """
         Construit un modèle Django à partir de l'entité Intervention.
-        Inclut l'agence_id si présent.
+
+        Important :
+            - Utilise `technicien_id` (identifiant) et non `technicien` (objet).
+            - L'objet `Technicien` du domaine n'est pas une instance du modèle Django.
+
+        Args:
+            entity (Intervention): Entité domaine.
+
+        Returns:
+            InterventionModel: Instance du modèle ORM (non persistée).
         """
         kwargs = {
             'bien_id': entity.bien_id,
@@ -51,9 +72,9 @@ class InterventionMapper:
             'date_debut': entity.date_debut,
             'date_fin': entity.date_fin,
             'statut': entity.statut,
-            'cout_main_oeuvre': entity._cout_main_oeuvre,
-            'cout_total': entity._cout_total,
-            'agence_id': entity.agence_id  # <-- ajout
+            'cout_main_oeuvre': getattr(entity, '_cout_main_oeuvre', 0),
+            'cout_total': getattr(entity, '_cout_total', 0),
+            'agence_id': entity.agence_id
         }
         if entity.id is not None:
             kwargs['id'] = entity.id
@@ -63,9 +84,13 @@ class InterventionMapper:
     def save_pieces(model: InterventionModel, pieces: List[Tuple[PieceDetachee, int]]) -> None:
         """
         Sauvegarde les pièces associées à une intervention dans la table de liaison.
+
+        Args:
+            model (InterventionModel): Instance du modèle ORM déjà sauvegardée.
+            pieces (List[Tuple[PieceDetachee, int]]): Liste des pièces et quantités.
         """
         for piece, quantite in pieces:
-            InterventionPieceModel.objects.create(
+            InterventionPiece.objects.create(
                 intervention=model,
                 piece_id=piece.id,
                 quantite=quantite

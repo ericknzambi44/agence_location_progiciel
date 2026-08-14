@@ -26,29 +26,52 @@ class TarificationViewSet(AgenceMixin, viewsets.ViewSet):
     """
     ViewSet gérant la configuration des règles de tarification dynamique des locations.
 
-    Attributs DDD / RBAC :
-        permission_classes: Validation RBAC sur les modèles de tarification.
-        required_module: Module applicatif 'location'.
-        required_model: Modèle de tarification ciblé 'regletarificationmodel'.
+    RBAC :
+        permission_classes : HasModulePermission
+        required_module    : 'location'
+        Modèle requis : 'regletarification' pour toutes les actions.
     """
 
     permission_classes = [HasModulePermission]
     required_module = 'location'
-    required_model = 'regletarificationmodel'
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # Injection des dépendances d'infrastructure et de service du domaine
         self.repo = DjangoRegleTarificationRepository()
         self.service = TarificationService(self.repo)
 
+    # --------------------------------------------------------------------------
+    # Mapping action -> modèle pour permissions RBAC
+    # --------------------------------------------------------------------------
+    def get_permissions(self):
+        """
+        Toutes les actions concernent le modèle 'regletarification'.
+        """
+        action_model_map = {
+            'list': 'regletarification',
+            'create': 'regletarification',
+        }
+        if self.action in action_model_map:
+            self.required_model = action_model_map[self.action]
+        return super().get_permissions()
+
+    # --------------------------------------------------------------------------
+    # Endpoints
+    # --------------------------------------------------------------------------
+
     def list(self, request):
         """
-        Récupère l'ensemble des règles de tarification actives pour l'agence de l'utilisateur.
+        GET /api/location/tarification/
+        Récupère l'ensemble des règles de tarification actives pour l'agence.
 
-        Permission requise : location.view_regletarificationmodel
+        Permission requise : location.view_regletarification
         """
         agence_id = self.get_agence_id()
+        if agence_id is None:
+            return Response(
+                {"error": "Aucune agence associée à cet utilisateur."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         regles = self.service.get_regles(agence_id=agence_id)
         serializer = RegleTarificationOutputSerializer(regles.regles, many=True)
@@ -56,19 +79,20 @@ class TarificationViewSet(AgenceMixin, viewsets.ViewSet):
 
     def create(self, request):
         """
-        Enregistre ou remplace la grille tarifaire pour l'agence de l'utilisateur.
+        POST /api/location/tarification/
+        Enregistre ou remplace la grille tarifaire pour l'agence.
 
-        Permission requise : location.add_regletarificationmodel
+        Permission requise : location.add_regletarification
         """
         agence_id = self.get_agence_id()
-
-        serializer = RegleTarificationInputSerializer(data=request.data)
-        if not serializer.is_valid():
+        if agence_id is None:
             return Response(
-                {"error": "Données de tarification invalides.", "details": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"error": "Aucune agence associée à cet utilisateur."},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
+        serializer = RegleTarificationInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         regles_data = serializer.validated_data['regles']
 
         # Reconstruction des Value Objects du Domaine

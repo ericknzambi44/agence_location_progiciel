@@ -1,0 +1,13 @@
+{% extends "admin/index.html" %}
+{% load i18n static %}
+
+{% block content %}
+    {{ block.super }}
+
+    <div style="margin-top: 20px;">
+        <a href="{% url 'sync_rbac' %}" class="button"
+           style="background: #417690; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px;">
+            Synchroniser les permissions RBAC
+        </a>
+    </div>
+{% endblock %}

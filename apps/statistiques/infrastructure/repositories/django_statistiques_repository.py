@@ -1,7 +1,9 @@
 """
 Repository Django pour les statistiques.
+
 Toutes les méthodes filtrent par agence.
 """
+
 from typing import List, Dict, Any, Optional
 from decimal import Decimal
 from datetime import date
@@ -9,17 +11,27 @@ from uuid import UUID
 from django.db.models import Sum, Count, Avg, Q, F, StdDev, Min, Max
 from django.db.models.functions import TruncMonth, TruncDay, TruncYear
 
-from location.infrastructure.models import ContratModel
-from stock.infrastructure.models import BienModel
-from maintenance.infrastructure.models import InterventionModel, InterventionPieceModel, PieceDetacheeModel
-from rh.infrastructure.models import EmployeModel
+from location.infrastructure.models import Contrat
+from stock.infrastructure.models import Bien  
+from maintenance.infrastructure.models import (
+    Intervention,          
+    InterventionPiece,   
+    PieceDetachee,        )
+from rh.infrastructure.models import Employe 
 
 from statistiques.domain.repositories.statistiques_repository import StatistiquesRepository
 from statistiques.domain.value_objects.periode import Periode, UnitePeriode
 
 
 class DjangoStatistiquesRepository(StatistiquesRepository):
+    """
+    Implémentation du repository des statistiques avec Django ORM.
+    """
+
     def _trunc_periode(self, periode: Periode):
+        """
+        Retourne la fonction de troncature Django selon l'unité de période.
+        """
         if periode.unite == UnitePeriode.JOUR:
             return TruncDay('date_debut')
         elif periode.unite == UnitePeriode.MOIS:
@@ -27,8 +39,12 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
         else:
             return TruncYear('date_debut')
 
-    # --- Revenus ---
+    # ------------------------------------------------------------------
+    # Revenus
+    # ------------------------------------------------------------------
+
     def get_revenus_par_periode(self, periode: Periode, agence_id: UUID = None) -> List[Dict[str, Any]]:
+        """Retourne les revenus agrégés par période (jour, mois, année)."""
         qs = ContratModel.objects.filter(
             date_debut__gte=periode.debut,
             date_debut__lte=periode.fin,
@@ -44,6 +60,7 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
         return list(qs)
 
     def get_revenus_par_bien(self, periode: Periode, agence_id: UUID = None) -> List[Dict[str, Any]]:
+        """Retourne les revenus totaux par bien immobilier."""
         qs = ContratModel.objects.filter(
             date_debut__gte=periode.debut,
             date_debut__lte=periode.fin,
@@ -57,7 +74,7 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
         ).order_by('-total')
         result = []
         for item in qs:
-            bien = BienModel.objects.filter(id=item['bien_id']).first()
+            bien = Bien.objects.filter(id=item['bien_id']).first()
             result.append({
                 'bien_id': str(item['bien_id']),
                 'nom': bien.nom if bien else 'Inconnu',
@@ -67,6 +84,7 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
         return result
 
     def get_revenus_par_client(self, periode: Periode, agence_id: UUID = None) -> List[Dict[str, Any]]:
+        """Retourne les dépenses totales par client."""
         qs = ContratModel.objects.filter(
             date_debut__gte=periode.debut,
             date_debut__lte=periode.fin,
@@ -87,8 +105,12 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
             })
         return result
 
-    # --- Contrats ---
+    # ------------------------------------------------------------------
+    # Contrats
+    # ------------------------------------------------------------------
+
     def get_nombre_contrats_par_periode(self, periode: Periode, agence_id: UUID = None) -> List[Dict[str, Any]]:
+        """Retourne le nombre de contrats par période."""
         qs = ContratModel.objects.filter(
             date_debut__gte=periode.debut,
             date_debut__lte=periode.fin
@@ -103,6 +125,7 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
         return list(qs)
 
     def get_nombre_contrats_par_statut(self, periode: Periode, agence_id: UUID = None) -> Dict[str, int]:
+        """Retourne le nombre de contrats par statut (actif, terminé, annulé)."""
         qs = ContratModel.objects.filter(
             date_debut__gte=periode.debut,
             date_debut__lte=periode.fin
@@ -115,9 +138,13 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
             result[item['statut']] = item['total']
         return result
 
-    # --- Taux d'occupation ---
+    # ------------------------------------------------------------------
+    # Taux d'occupation
+    # ------------------------------------------------------------------
+
     def get_taux_occupation_global(self, periode: Periode, agence_id: UUID = None) -> float:
-        qs_biens = BienModel.objects.filter(etat__in=['disponible', 'en_maintenance'])
+        """Retourne le taux d'occupation global (contrats actifs / biens disponibles)."""
+        qs_biens = Bien.objects.filter(etat__in=['disponible', 'en_maintenance'])
         if agence_id is not None:
             qs_biens = qs_biens.filter(agence_id=agence_id)
         total_biens = qs_biens.count()
@@ -136,6 +163,7 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
         return nb_contrats / total_biens
 
     def get_taux_occupation_par_bien(self, bien_id: UUID, periode: Periode, agence_id: UUID = None) -> float:
+        """Retourne le taux d'occupation d'un bien sur la période."""
         nb_jours = (periode.fin - periode.debut).days + 1
         qs = ContratModel.objects.filter(
             bien_id=bien_id,
@@ -145,11 +173,18 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
         )
         if agence_id is not None:
             qs = qs.filter(agence_id=agence_id)
-        total_jours_occupe = sum((min(c.date_fin, periode.fin) - max(c.date_debut, periode.debut)).days + 1 for c in qs)
+        total_jours_occupe = sum(
+            (min(c.date_fin, periode.fin) - max(c.date_debut, periode.debut)).days + 1
+            for c in qs
+        )
         return total_jours_occupe / nb_jours if nb_jours > 0 else 0
 
-    # --- Biens populaires ---
+    # ------------------------------------------------------------------
+    # Biens populaires
+    # ------------------------------------------------------------------
+
     def get_biens_les_plus_loues(self, periode: Periode, limite: int = 5, agence_id: UUID = None) -> List[Dict[str, Any]]:
+        """Retourne les biens les plus loués sur la période."""
         qs = ContratModel.objects.filter(
             date_debut__gte=periode.debut,
             date_debut__lte=periode.fin
@@ -162,7 +197,7 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
         ).order_by('-total')[:limite]
         result = []
         for item in qs:
-            bien = BienModel.objects.filter(id=item['bien_id']).first()
+            bien = Bien.objects.filter(id=item['bien_id']).first()
             result.append({
                 'bien_id': str(item['bien_id']),
                 'nom': bien.nom if bien else 'Inconnu',
@@ -172,9 +207,13 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
             })
         return result
 
-    # --- Pièces populaires ---
+    # ------------------------------------------------------------------
+    # Pièces populaires
+    # ------------------------------------------------------------------
+
     def get_pieces_les_plus_utilisees(self, periode: Periode, limite: int = 5, agence_id: UUID = None) -> List[Dict[str, Any]]:
-        interventions_qs = InterventionModel.objects.filter(
+        """Retourne les pièces détachées les plus utilisées."""
+        interventions_qs = Intervention.objects.filter(
             date_debut__gte=periode.debut,
             date_debut__lte=periode.fin,
             statut='terminee'
@@ -182,7 +221,7 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
         if agence_id is not None:
             interventions_qs = interventions_qs.filter(agence_id=agence_id)
 
-        qs = InterventionPieceModel.objects.filter(
+        qs = InterventionPiece.objects.filter(
             intervention__in=interventions_qs
         ).values('piece_id').annotate(
             total_quantite=Sum('quantite'),
@@ -190,7 +229,7 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
         ).order_by('-total_quantite')[:limite]
         result = []
         for item in qs:
-            piece = PieceDetacheeModel.objects.filter(id=item['piece_id']).first()
+            piece = PieceDetachee.objects.filter(id=item['piece_id']).first()
             result.append({
                 'piece_id': str(item['piece_id']),
                 'nom': piece.nom if piece else 'Inconnu',
@@ -200,9 +239,13 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
             })
         return result
 
-    # --- Interventions par technicien ---
+    # ------------------------------------------------------------------
+    # Interventions par technicien
+    # ------------------------------------------------------------------
+
     def get_interventions_par_technicien(self, periode: Periode, agence_id: UUID = None) -> List[Dict[str, Any]]:
-        qs = InterventionModel.objects.filter(
+        """Retourne les statistiques d'interventions groupées par technicien."""
+        qs = Intervention.objects.filter(
             date_debut__gte=periode.debut,
             date_debut__lte=periode.fin,
             statut='terminee'
@@ -218,7 +261,7 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
         for item in qs:
             technicien = None
             if item['technicien_id']:
-                technicien = EmployeModel.objects.filter(id=item['technicien_id']).first()
+                technicien = Employe.objects.filter(id=item['technicien_id']).first()
                 nom = f"{technicien.prenom} {technicien.nom}" if technicien else 'Inconnu'
             else:
                 nom = 'Non assigné'
@@ -233,7 +276,8 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
         return result
 
     def get_statistiques_interventions(self, periode: Periode, agence_id: UUID = None) -> Dict[str, Any]:
-        qs = InterventionModel.objects.filter(
+        """Retourne les statistiques globales des interventions terminées."""
+        qs = Intervention.objects.filter(
             date_debut__gte=periode.debut,
             date_debut__lte=periode.fin,
             statut='terminee'
@@ -261,8 +305,12 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
             'ecart_type_heures': stddev.total_seconds() / 3600 if stddev else 0,
         }
 
-    # --- Clients ---
+    # ------------------------------------------------------------------
+    # Clients
+    # ------------------------------------------------------------------
+
     def get_nombre_clients_actifs(self, periode: Periode, agence_id: UUID = None) -> int:
+        """Retourne le nombre de clients distincts ayant au moins un contrat sur la période."""
         qs = ContratModel.objects.filter(
             date_debut__gte=periode.debut,
             date_debut__lte=periode.fin
@@ -272,6 +320,7 @@ class DjangoStatistiquesRepository(StatistiquesRepository):
         return qs.values('client_id').distinct().count()
 
     def get_clients_plus_actifs(self, periode: Periode, limite: int = 5, agence_id: UUID = None) -> List[Dict[str, Any]]:
+        """Retourne les clients les plus actifs (par nombre de contrats)."""
         qs = ContratModel.objects.filter(
             date_debut__gte=periode.debut,
             date_debut__lte=periode.fin

@@ -1,95 +1,49 @@
 """
-Serializers personnalisés pour le module d'authentification.
-Gère l'enrichissement du payload JWT avec le RBAC, le contexte agence,
-et l'exposition du profil utilisateur.
+Sérialiseurs du module d'authentification.
 """
 
 from rest_framework import serializers
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from django.contrib.auth import get_user_model
-from rh.infrastructure.models import EmployeModel
-
-User = get_user_model()
+from rh.infrastructure.models import Employe
 
 
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+class CustomTokenObtainPairSerializer(serializers.Serializer):
     """
-    Serializer JWT personnalisé injectant le profil utilisateur,
-    ses rôles (groupes), ses permissions et son agence dans le token.
+    Sérialiseur personnalisé pour la connexion JWT.
+    Ajoute des informations sur l'employé et ses rôles.
     """
 
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
 
-        # ------------------------------------------------------------------
-        # 1. Informations de base de l'utilisateur
-        # ------------------------------------------------------------------
-        token['username'] = user.username
-        token['email'] = user.email
-        token['first_name'] = user.first_name
-        token['last_name'] = user.last_name
-        token['is_superuser'] = user.is_superuser
+    def validate(self, attrs):
+        from django.contrib.auth.models import User
+        from django.contrib.auth import authenticate
+        username = attrs.get('username')
+        password = attrs.get('password')
 
-        # ------------------------------------------------------------------
-        # 2. RBAC (Roles & Permissions)
-        # ------------------------------------------------------------------
-        roles = list(user.groups.values_list('name', flat=True))
-        token['roles'] = roles
+        user = authenticate(username=username, password=password)
+        if user is None:
+            raise serializers.ValidationError("Identifiants invalides.")
 
-        permissions = list(user.get_all_permissions())
-        token['permissions'] = permissions
+        # Vérifier si un employé est lié
+        try:
+            employe = Employe.objects.get(user=user)
+        except Employe.DoesNotExist:
+            raise serializers.ValidationError("Aucun employé associé à cet utilisateur.")
 
-        # ------------------------------------------------------------------
-        # 3. Métier : Isolation Multi-Agence
-        # ------------------------------------------------------------------
-        agence_id = None
-        if not user.is_superuser:
-            try:
-                employe = EmployeModel.objects.get(email=user.email)
-                agence_id = employe.agence_id
-            except EmployeModel.DoesNotExist:
-                agence_id = None
-
-        token['agence_id'] = agence_id
-
-        return token
-
-
-class UserProfileSerializer(serializers.ModelSerializer):
-    """
-    Serializer pour l'endpoint GET /auth/me/
-    Expose le profil de l'utilisateur connecté avec son agence et le RBAC.
-    """
-    roles = serializers.SerializerMethodField()
-    permissions = serializers.SerializerMethodField()
-    agence_id = serializers.SerializerMethodField()
-
-    class Meta:
-        model = User
-        fields = [
-            'id',
-            'username',
-            'email',
-            'first_name',
-            'last_name',
-            'is_superuser',
-            'roles',
-            'permissions',
-            'agence_id',
-        ]
-
-    def get_roles(self, obj) -> list[str]:
-        return list(obj.groups.values_list('name', flat=True))
-
-    def get_permissions(self, obj) -> list[str]:
-        return list(obj.get_all_permissions())
-
-    def get_agence_id(self, obj):
-        if not obj.is_superuser:
-            try:
-                employe = EmployeModel.objects.get(email=obj.email)
-                return employe.agence_id
-            except EmployeModel.DoesNotExist:
-                return None
-        return None
+        # Ajouter des informations au token
+        token_data = {
+            'user_id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'employe_id': str(employe.id),
+            'agence_id': str(employe.agence_id),
+        }
+        # On peut utiliser les méthodes de SimpleJWT pour générer le token
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(user)
+        refresh['employe_id'] = str(employe.id)
+        refresh['agence_id'] = str(employe.agence_id)
+        attrs['refresh'] = str(refresh)
+        attrs['access'] = str(refresh.access_token)
+        return attrs

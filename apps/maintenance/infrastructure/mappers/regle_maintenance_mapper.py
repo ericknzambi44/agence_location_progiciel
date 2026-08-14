@@ -1,14 +1,12 @@
 """
-Mapper pour la conversion entre le modèle Django RegleMaintenanceModel et l'entité domaine RegleMaintenance.
+Mapper pour la conversion entre le modèle Django RegleMaintenance et l'entité domaine RegleMaintenance.
 """
-from uuid import UUID
+
 from decimal import Decimal
 
-from maintenance.domain.value_objects.regle_maintenance import (
-    RegleMaintenance, TypeRegleMaintenance
-)
-from maintenance.domain.entities.regle_maintenance import ReglesMaintenance
-from maintenance.infrastructure.models import RegleMaintenanceModel
+from maintenance.domain.entities.regle_maintenance import RegleMaintenance
+from maintenance.domain.value_objects.regle_maintenance import TypeRegleMaintenance
+from maintenance.infrastructure.models import RegleMaintenance as RegleMaintenanceModel  # alias
 
 
 class RegleMaintenanceMapper:
@@ -22,10 +20,10 @@ class RegleMaintenanceMapper:
         Construit une entité domaine à partir du modèle Django.
 
         Args:
-            model: instance de RegleMaintenanceModel
+            model (RegleMaintenanceModel): Instance du modèle ORM.
 
         Returns:
-            RegleMaintenance: entité domaine
+            RegleMaintenance: Entité domaine.
         """
         return RegleMaintenance(
             type=TypeRegleMaintenance(model.type),
@@ -45,10 +43,10 @@ class RegleMaintenanceMapper:
         Construit un modèle Django à partir de l'entité domaine.
 
         Args:
-            regle: entité RegleMaintenance
+            regle (RegleMaintenance): Entité domaine.
 
         Returns:
-            RegleMaintenanceModel: instance prête à être sauvegardée
+            RegleMaintenanceModel: Instance ORM prête à être sauvegardée.
         """
         return RegleMaintenanceModel(
             agence_id=regle.agence_id,

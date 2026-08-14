@@ -1,56 +1,68 @@
 """
 Implémentation concrète du repository pour les pièces détachées avec Django ORM.
+
 Toutes les méthodes de lecture supportent le filtrage par agence.
 """
-from django.core.exceptions import ObjectDoesNotExist
+
 from typing import Optional, List
 from uuid import UUID
 
+from django.core.exceptions import ObjectDoesNotExist
+
 from maintenance.domain.repositories.piece_repository import PieceDetacheeRepository
 from maintenance.domain.entities.piece_detachee import PieceDetachee
-from maintenance.infrastructure.models import PieceDetacheeModel
-from maintenance.infrastructure.mappers.piece_mapper import PieceDetacheeMapper
+from maintenance.infrastructure.models import PieceDetachee  # Modèle Django (PieceDetachee)
+from maintenance.infrastructure.mappers.piece_detachee_mapper import PieceDetacheeMapper
 
 
 class DjangoPieceDetacheeRepository(PieceDetacheeRepository):
-    """Repository Django pour les pièces détachées."""
+    """
+    Repository Django pour les pièces détachées.
+    """
 
     def get(self, piece_id: UUID, agence_id: UUID = None) -> Optional[PieceDetachee]:
         """
-        Récupère une pièce par son ID.
-        Si agence_id est fourni, vérifie que la pièce appartient à cette agence.
+        Récupère une pièce par son identifiant, filtrée par agence.
+
+        Args:
+            piece_id (UUID): Identifiant de la pièce.
+            agence_id (UUID, optionnel): Filtre par agence.
+
+        Returns:
+            Optional[PieceDetachee]: Entité domaine si trouvée, sinon None.
         """
         try:
-            qs = PieceDetacheeModel.objects.filter(id=piece_id)
+            qs = PieceDetachee.objects.filter(id=piece_id)
             if agence_id is not None:
                 qs = qs.filter(agence_id=agence_id)
             model = qs.get()
             return PieceDetacheeMapper.to_domain(model)
-        except ObjectDoesNotExist:
+        except PieceDetachee.DoesNotExist:
             return None
 
     def find_by_reference(self, reference: str, agence_id: UUID = None) -> Optional[PieceDetachee]:
         """
-        Recherche une pièce par sa référence.
-        Si agence_id est fourni, la référence doit appartenir à cette agence.
+        Recherche une pièce par sa référence, filtrée par agence.
         """
         try:
-            qs = PieceDetacheeModel.objects.filter(reference=reference)
+            qs = PieceDetachee.objects.filter(reference=reference)
             if agence_id is not None:
                 qs = qs.filter(agence_id=agence_id)
             model = qs.get()
             return PieceDetacheeMapper.to_domain(model)
-        except ObjectDoesNotExist:
+        except PieceDetachee.DoesNotExist:
             return None
 
-    # Alias pour compatibilité (appelé par certains use cases)
     def get_by_reference(self, reference: str, agence_id: UUID = None) -> Optional[PieceDetachee]:
+        """Alias de `find_by_reference` pour compatibilité."""
         return self.find_by_reference(reference, agence_id)
 
     def add(self, piece: PieceDetachee) -> None:
         """
-        Ajoute une nouvelle pièce.
-        L'agence_id doit déjà être défini dans l'entité.
+        Insère une nouvelle pièce, en exigeant une agence.
+
+        Args:
+            piece (PieceDetachee): Entité domaine à persister.
         """
         if not hasattr(piece, 'agence_id') or piece.agence_id is None:
             raise ValueError("La pièce doit avoir un agence_id pour être sauvegardée.")
@@ -59,18 +71,19 @@ class DjangoPieceDetacheeRepository(PieceDetacheeRepository):
         piece.id = model.id
 
     def update(self, piece: PieceDetachee) -> None:
+        """Met à jour une pièce existante."""
         model = PieceDetacheeMapper.to_model(piece)
         model.save()
 
     def remove(self, piece: PieceDetachee) -> None:
-        PieceDetacheeModel.objects.filter(id=piece.id).delete()
+        """Supprime une pièce."""
+        PieceDetachee.objects.filter(id=piece.id).delete()
 
     def find_all(self, agence_id: UUID = None) -> List[PieceDetachee]:
         """
-        Retourne toutes les pièces de l'agence.
-        Si agence_id est None, retourne une liste vide.
+        Retourne toutes les pièces d'une agence (liste vide si pas d'agence).
         """
         if agence_id is None:
             return []
-        models = PieceDetacheeModel.objects.filter(agence_id=agence_id)
+        models = PieceDetachee.objects.filter(agence_id=agence_id)
         return [PieceDetacheeMapper.to_domain(m) for m in models]

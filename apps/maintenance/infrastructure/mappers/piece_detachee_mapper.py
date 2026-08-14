@@ -1,9 +1,11 @@
 """
-Mapper entre l'entité domaine PieceDetachee et le modèle ORM PieceDetacheeModel.
-Assure la conversion dans les deux sens, incluant l'agence_id pour le multi-agences.
+Mapper entre l'entité domaine PieceDetachee et le modèle ORM PieceDetachee.
+
+Assure la conversion bidirectionnelle, incluant l'agence_id pour le multi-agences.
 """
+
 from maintenance.domain.entities.piece_detachee import PieceDetachee
-from maintenance.infrastructure.models import PieceDetacheeModel
+from maintenance.infrastructure.models import PieceDetachee as PieceDetacheeModel  # alias
 
 
 class PieceDetacheeMapper:
@@ -20,7 +22,7 @@ class PieceDetacheeMapper:
             nom=model.nom,
             prix_unitaire=model.prix_unitaire,
             stock=model.stock,
-            agence_id=model.agence_id  # <-- ajout
+            agence_id=model.agence_id
         )
 
     @staticmethod

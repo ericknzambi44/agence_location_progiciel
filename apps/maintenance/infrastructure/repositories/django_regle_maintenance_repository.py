@@ -1,12 +1,13 @@
 """
 Repository Django pour les règles de tarification de maintenance.
 """
+
 from typing import Optional
 from uuid import UUID
 
 from maintenance.domain.repositories.regle_maintenance_repository import RegleMaintenanceRepository
 from maintenance.domain.entities.regle_maintenance import ReglesMaintenance
-from maintenance.infrastructure.models import RegleMaintenanceModel
+from maintenance.infrastructure.models import RegleMaintenance  # Modèle Django (RegleMaintenance)
 from maintenance.infrastructure.mappers.regle_maintenance_mapper import RegleMaintenanceMapper
 
 
@@ -20,12 +21,12 @@ class DjangoRegleMaintenanceRepository(RegleMaintenanceRepository):
         Récupère toutes les règles de tarification pour une agence donnée.
 
         Args:
-            agence_id: UUID de l'agence
+            agence_id (UUID): Identifiant de l'agence.
 
         Returns:
-            ReglesMaintenance: agrégat contenant les règles, ou None si aucune.
+            ReglesMaintenance: Agrégat contenant les règles, ou None si aucune.
         """
-        models = RegleMaintenanceModel.objects.filter(agence_id=agence_id)
+        models = RegleMaintenance.objects.filter(agence_id=agence_id)
         if not models.exists():
             return None
         regles = [RegleMaintenanceMapper.to_domain(m) for m in models]
@@ -33,16 +34,15 @@ class DjangoRegleMaintenanceRepository(RegleMaintenanceRepository):
 
     def save(self, regles: ReglesMaintenance) -> None:
         """
-        Sauvegarde (remplace) l'ensemble des règles pour une agence.
-        Supprime les anciennes et crée les nouvelles.
+        Remplace l'ensemble des règles pour une agence.
+
+        Supprime les anciennes règles puis crée les nouvelles.
 
         Args:
-            regles: agrégat ReglesMaintenance contenant les nouvelles règles.
+            regles (ReglesMaintenance): Agrégat contenant les nouvelles règles.
         """
-        # Suppression des anciennes règles de l'agence
-        RegleMaintenanceModel.objects.filter(agence_id=regles.agence_id).delete()
+        RegleMaintenance.objects.filter(agence_id=regles.agence_id).delete()
 
-        # Création des nouvelles
         for r in regles.regles:
             model = RegleMaintenanceMapper.to_model(r)
             model.save()
